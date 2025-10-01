@@ -1,0 +1,23 @@
+{
+  "name": "time-punch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal TypeScript Electron time tracker with tray and two-screen UI",
+  "main": "dist/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "test": "jest --runInBand",
+    "package": "npm run build && electron-packager . TimePunch --platform=darwin --arch=arm64 --out=out --overwrite"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^22.7.5",
+    "electron": "^32.2.0",
+    "electron-packager": "^17.1.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.8.3"
+  }
+}

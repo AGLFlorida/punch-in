@@ -1,0 +1,28 @@
+{
+  "name": "punch-in",
+  "version": "1.0.0",
+  "description": "A tiny Electron app to punch in/out per project, with a Mac menu bar (tray) item showing the current project and elapsed time, plus a simple 2-screen UI (Timer & Reports).",
+  "main": "dist/main.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "tsc && npm run copy:assets",
+    "start": "npm run build && electron .",
+    "test": "jest --runInBand",
+    "package": "npm run build && electron-packager . PunchIn --platform=darwin --arch=arm64 --out=out --overwrite",
+    "copy:assets": "cp -r src/renderer/*.{html,css} dist/renderer"
+  },
+  "author": "Brandon Shoop <brandon@aglflorida.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.6.1",
+    "electron": "^38.2.0",
+    "electron-packager": "^17.1.2",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
