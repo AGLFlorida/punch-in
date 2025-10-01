@@ -7,22 +7,31 @@
     "test": "tests"
   },
   "scripts": {
-    "build": "tsc && npm run copy:assets",
+    "build": "npm run clean:dev && tsc && npm run copy:assets",
     "start": "npm run build && electron .",
     "test": "jest --runInBand",
+    "lint": "eslint .",
     "package": "npm run build && electron-packager . PunchIn --platform=darwin --arch=arm64 --out=out --overwrite",
-    "copy:assets": "cp -r src/renderer/*.{html,css} dist/renderer"
+    "copy:assets": "cp src/renderer/*.{html,css,svg} dist/renderer",
+    "clean:dev": "rm -rf dist"
   },
   "author": "Brandon Shoop <brandon@aglflorida.com>",
   "license": "MIT",
   "dependencies": {
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.6.1",
     "electron": "^38.2.0",
     "electron-packager": "^17.1.2",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.6.1",
+    "eslint": "^9.36.0",
+    "globals": "^16.4.0",
+    "jiti": "^2.6.1",
+    "typescript-eslint": "^8.45.0"
   }
 }

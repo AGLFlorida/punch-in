@@ -4,9 +4,15 @@
     "module": "commonjs",
     "strict": true,
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "src",
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src", "jest.config.ts"]
+  "include": ["src"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.js",
+    "**/*.test.ts"
+  ]
 }

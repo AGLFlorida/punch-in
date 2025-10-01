@@ -5,6 +5,7 @@ import { msToHMS } from './shared/time';
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let isQuitting: boolean = false;
 
 type Session = { project: string; start: number; end: number };
 type State = {
@@ -54,7 +55,8 @@ function updateTray() {
     { type: 'separator' },
     {
       label: state.running ? 'Stop' : 'Start',
-      click: () => { state.running ? stopTimer() : startTimer(state.currentProject || state.projects[0]); }
+      click: () => state.running ? stopTimer() : startTimer(state.currentProject || state.projects[0])
+       
     },
     { type: 'separator' },
     { label: 'Show Window', click: () => win?.show() },
@@ -91,23 +93,32 @@ async function createWindow() {
     show: false,
     title: 'Time Punch',
     webPreferences: {
-      preload: path.join(process.cwd(), 'dist', 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
   });
-  await win.loadFile(path.join('dist', 'renderer', 'index.html'));
+
+  await win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
   win.on('close', (e) => {
-    e.preventDefault();
-    win?.hide();
+    if (!isQuitting) {
+      e.preventDefault();
+      win?.hide();
+    }
   });
 }
 
 app.whenReady().then(async () => {
   ensureDataDir();
   await createWindow();
-  const tray = new Tray(nativeImage.createFromPath('assets/iconTemplate.png')); //@TODO provide an actual icon
+
+  tray = new Tray(nativeImage.createFromPath(
+    path.join(__dirname, 'renderer', 'clock.svg')
+  ));
+
   updateTray();
+  
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) { createWindow(); }
     else { win?.show(); }
@@ -119,6 +130,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
   if (state.running) stopTimer();
 });
 
