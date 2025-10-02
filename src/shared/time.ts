@@ -8,7 +8,6 @@ export function msToHMS(ms: number): string {
   return `${hh}:${mm}:${ss}`;
 }
 
-
 export function elapsedNow(state: State): number {
   return (state.running && state.startTs) ? (Date.now() - state.startTs) : 0;
 }

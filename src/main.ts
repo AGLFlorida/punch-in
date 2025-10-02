@@ -3,9 +3,10 @@ import type { Event, WebContentsConsoleMessageEventParams } from 'electron';
 import path from 'node:path';
 
 import { msToHMS, elapsedNow } from './shared/time.js';
-import Database from 'better-sqlite3';
 import { readSessions } from './shared/session';
-import type { State, Session } from './types';
+import type { State } from './types';
+
+import { saveSession, initDb, closeDB, listSessions } from './shared/data.js';
 
 
 let win: BrowserWindow | null = null;
@@ -105,39 +106,6 @@ async function createWindow() {
   });
 }
 
-// SQLite setup (main process only)
-const dbPath = path.join(app.getPath('userData'), 'punchin.sqlite');
-let db: Database.Database;
-
-function initDb() {
-  db = new Database(dbPath);
-  // Faster, safe journaling
-  db.pragma('journal_mode = WAL');
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id       INTEGER PRIMARY KEY AUTOINCREMENT,
-      project  TEXT NOT NULL,
-      start_ms INTEGER NOT NULL,
-      end_ms   INTEGER NOT NULL
-    );
-  `);
-}
-
-function saveSession(row: { project: string; start: number; end: number }) {
-  const stmt = db.prepare(
-    'INSERT INTO sessions (project, start_ms, end_ms) VALUES (?, ?, ?)'
-  );
-  stmt.run(row.project, row.start, row.end);
-}
-
-function listSessions(): Array<Session> {
-  const stmt = db.prepare(
-    'SELECT project, start_ms AS start, end_ms AS end FROM sessions ORDER BY start_ms DESC LIMIT 2000'
-  );
-  
-  return stmt.all() as Array<Session>;
-}
-
 
 app.whenReady().then(async () => {
   //ensureDataDir();
@@ -163,7 +131,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   isQuitting = true;
   if (state.running) stopTimer();
-  try { db?.close(); } catch {}
+  closeDB();
 });
 
 // IPC
