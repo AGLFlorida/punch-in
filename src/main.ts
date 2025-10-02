@@ -74,6 +74,13 @@ async function createWindow() {
 
   await win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  if (process.env.NODE_ENV === 'development') {
+    win.webContents.openDevTools({ mode: 'detach', activate: true });
+    win.webContents.on('console-message', (_e, level, message, line, source) => {
+      console.log(`[renderer:${level}] ${message} (${source}:${line})`);
+    });
+  }
+
   win.on('close', (e) => {
     if (!isQuitting) {
       e.preventDefault();

@@ -3,13 +3,10 @@
   "version": "1.0.0",
   "description": "A tiny Electron app to punch in/out per project, with a Mac menu bar (tray) item showing the current project and elapsed time, plus a simple 2-screen UI (Timer & Reports).",
   "main": "dist/main.js",
-  "directories": {
-    "test": "tests"
-  },
   "scripts": {
     "build": "npm run clean:dev && tsc -p tsconfig.json && tsc -p tsconfig.renderer.json && npm run copy:assets",
     "start": "npm run build && electron .",
-    "start:logging": "ELECTRON_ENABLE_LOGGING=1 npm start",
+    "dev": "NODE_ENV=development ELECTRON_ENABLE_LOGGING=1 npm start",
     "test": "jest --runInBand",
     "lint": "eslint .",
     "package": "npm run build && electron-packager . PunchIn --platform=darwin --arch=arm64 --out=out --overwrite",
