@@ -1,4 +1,5 @@
 import { msToHMS } from '../shared/time';
+import type { State } from '../types';
 
 const els = {
   project: document.getElementById('project-select') as HTMLSelectElement,
@@ -12,13 +13,6 @@ const els = {
   viewReports: document.getElementById('view-reports') as HTMLElement,
   reportBody: document.querySelector('#report tbody') as HTMLElement,
   saveProjects: document.getElementById('save-projects') as HTMLButtonElement
-};
-
-type State = {
-  running: boolean;
-  currentProject: string;
-  startTs: number | null;
-  projects: string[];
 };
 
 let appState: State = { running: false, currentProject: '', startTs: null, projects: [] };

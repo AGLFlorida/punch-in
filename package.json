@@ -7,17 +7,24 @@
     "test": "tests"
   },
   "scripts": {
-    "build": "npm run clean:dev && tsc && npm run copy:assets",
+    "build": "npm run clean:dev && tsc -p tsconfig.json && tsc -p tsconfig.renderer.json && npm run copy:assets",
     "start": "npm run build && electron .",
+    "start:logging": "ELECTRON_ENABLE_LOGGING=1 npm start",
     "test": "jest --runInBand",
     "lint": "eslint .",
     "package": "npm run build && electron-packager . PunchIn --platform=darwin --arch=arm64 --out=out --overwrite",
     "copy:assets": "cp src/renderer/*.{html,css,svg} dist/renderer",
-    "clean:dev": "rm -rf dist"
+    "clean:dev": "rm -rf dist",
+    "rebuild:sqlite": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "npm run rebuild:sqlite",
+    "prestart": "npm run rebuild:sqlite",
+    "prepackage": "npm run rebuild:sqlite"
   },
   "author": "Brandon Shoop <brandon@aglflorida.com>",
   "license": "MIT",
   "dependencies": {
+    "@electron/rebuild": "^4.0.1",
+    "better-sqlite3": "^12.4.1",
     "electron": "^38.2.0",
     "electron-packager": "^17.1.2",
     "jest": "^30.2.0",
@@ -27,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.6.1",
     "eslint": "^9.36.0",

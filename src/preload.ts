@@ -1,11 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-
-type State = {
-  running: boolean;
-  currentProject: string;
-  startTs: number | null;
-  projects: string[];
-};
+import type {State } from './types';
 
 const api = {
   getState: (): Promise<State> => ipcRenderer.invoke('state:get'),
