@@ -1,3 +1,5 @@
+/// <reference path="../preload.d.ts" />
+
 import { msToHMS } from '../shared/time';
 import type { State } from '../types';
 

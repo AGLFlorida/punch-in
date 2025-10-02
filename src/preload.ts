@@ -11,8 +11,4 @@ const api = {
   onSessionsUpdated: (cb: () => void) => ipcRenderer.on('sessions:updated', cb)
 };
 
-declare global {
-  interface Window { tp: typeof api; }
-}
-
 contextBridge.exposeInMainWorld('tp', api);

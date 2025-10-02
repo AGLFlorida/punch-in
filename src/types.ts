@@ -6,3 +6,5 @@ export type State = {
   startTs: number | null;
   projects: string[];
 };
+
+export type TimerCallback = () => void;
