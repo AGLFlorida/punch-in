@@ -41,6 +41,17 @@
       </section>
     </main>
 
+    <dialog id="projDlg">
+      <form method="dialog">
+        <label for="projInput">Projects (comma-separated)</label>
+        <input id="projInput" type="text" style="width: 100%;" />
+        <menu>
+          <button value="cancel">Cancel</button>
+          <button id="projOk" value="ok">Save</button>
+        </menu>
+      </form>
+    </dialog>
+
     <footer>
       <button id="save-projects" title="Comma-separated list">Edit Projects</button>
     </footer>

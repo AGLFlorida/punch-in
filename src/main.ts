@@ -1,7 +1,8 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } from 'electron';
+import type { Event, WebContentsConsoleMessageEventParams } from 'electron';
 import path from 'node:path';
 
-import { msToHMS, elapsedNow } from './shared/time';
+import { msToHMS, elapsedNow } from './shared/time.js';
 import Database from 'better-sqlite3';
 import { readSessions } from './shared/session';
 import type { State, Session } from './types';
@@ -51,7 +52,6 @@ function stopTimer() {
   const end = Date.now();
   const sessions = readSessions();
   sessions.push({ project: state.currentProject, start: state.startTs!, end });
-  //writeSessions(sessions);
   saveSession({ project: state.currentProject, start: state.startTs!, end });
   state.running = false;
   state.startTs = null;
@@ -76,8 +76,24 @@ async function createWindow() {
 
   if (process.env.NODE_ENV === 'development') {
     win.webContents.openDevTools({ mode: 'detach', activate: true });
-    win.webContents.on('console-message', (_e, level, message, line, source) => {
-      console.log(`[renderer:${level}] ${message} (${source}:${line})`);
+    win.webContents.on('console-message', (e: Event<WebContentsConsoleMessageEventParams>) => {
+      const { level, message, lineNumber, sourceId } = e;
+      let log = console.log; // TODO abstract this logic into an actual logger.
+      switch(level) {
+        case 'debug':
+          log = console.debug;
+          break;
+        case 'error':
+          log = console.error;
+          break;
+        case 'info':
+          log = console.info;
+          break;
+        case 'warning':
+          log = console.warn;
+          break;
+      }
+      log(`[${new Date(Date.now()).toISOString()}:RENDERER:${level.toLocaleUpperCase()}] ${message} (${sourceId}:${lineNumber})`);
     });
   }
 
