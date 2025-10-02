@@ -1,11 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-
-type State = {
-  running: boolean;
-  currentProject: string;
-  startTs: number | null;
-  projects: string[];
-};
+import type {State } from './types';
 
 const api = {
   getState: (): Promise<State> => ipcRenderer.invoke('state:get'),
@@ -16,9 +10,5 @@ const api = {
   onTick: (cb: () => void) => ipcRenderer.on('tick', cb),
   onSessionsUpdated: (cb: () => void) => ipcRenderer.on('sessions:updated', cb)
 };
-
-declare global {
-  interface Window { tp: typeof api; }
-}
 
 contextBridge.exposeInMainWorld('tp', api);

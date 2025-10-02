@@ -13,6 +13,7 @@
     "node_modules",
     "dist",
     "**/*.test.js",
-    "**/*.test.ts"
+    "**/*.test.ts",
+    "src/renderer/renderer.ts"
   ]
 }

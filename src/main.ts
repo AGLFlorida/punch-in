@@ -1,19 +1,16 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } from 'electron';
-import fs from 'node:fs';
+import type { Event, WebContentsConsoleMessageEventParams } from 'electron';
 import path from 'node:path';
-import { msToHMS } from './shared/time';
+
+import { msToHMS, elapsedNow } from './shared/time.js';
+import Database from 'better-sqlite3';
+import { readSessions } from './shared/session';
+import type { State, Session } from './types';
+
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting: boolean = false;
-
-type Session = { project: string; start: number; end: number };
-type State = {
-  running: boolean;
-  currentProject: string;
-  startTs: number | null;
-  projects: string[];
-};
 
 const state: State = {
   running: false,
@@ -22,32 +19,9 @@ const state: State = {
   projects: ['Client A - Website', 'Client B - Mobile App', 'Internal - Admin', 'R&D']
 };
 
-const DATA_DIR = path.join(app.getPath('userData'), 'data');
-const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
-
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(SESSIONS_FILE)) fs.writeFileSync(SESSIONS_FILE, '[]', 'utf8');
-}
-
-function readSessions(): Session[] {
-  ensureDataDir();
-  try { return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')) as Session[]; }
-  catch { return []; }
-}
-
-function writeSessions(sessions: Session[]) {
-  ensureDataDir();
-  fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
-}
-
-function elapsedNow(): number {
-  return (state.running && state.startTs) ? (Date.now() - state.startTs) : 0;
-}
-
 function updateTray() {
   if (!tray) return;
-  const labelTime = state.running ? msToHMS(elapsedNow()) : '00:00:00';
+  const labelTime = state.running ? msToHMS(elapsedNow(state)) : '00:00:00';
   const labelProj = state.currentProject || '—';
   tray.setTitle(`${labelTime} · ${labelProj}`);
   const menu = Menu.buildFromTemplate([
@@ -56,7 +30,6 @@ function updateTray() {
     {
       label: state.running ? 'Stop' : 'Start',
       click: () => state.running ? stopTimer() : startTimer(state.currentProject || state.projects[0])
-       
     },
     { type: 'separator' },
     { label: 'Show Window', click: () => win?.show() },
@@ -79,7 +52,7 @@ function stopTimer() {
   const end = Date.now();
   const sessions = readSessions();
   sessions.push({ project: state.currentProject, start: state.startTs!, end });
-  writeSessions(sessions);
+  saveSession({ project: state.currentProject, start: state.startTs!, end });
   state.running = false;
   state.startTs = null;
   updateTray();
@@ -101,6 +74,29 @@ async function createWindow() {
 
   await win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  if (process.env.NODE_ENV === 'development') {
+    win.webContents.openDevTools({ mode: 'detach', activate: true });
+    win.webContents.on('console-message', (e: Event<WebContentsConsoleMessageEventParams>) => {
+      const { level, message, lineNumber, sourceId } = e;
+      let log = console.log; // TODO abstract this logic into an actual logger.
+      switch(level) {
+        case 'debug':
+          log = console.debug;
+          break;
+        case 'error':
+          log = console.error;
+          break;
+        case 'info':
+          log = console.info;
+          break;
+        case 'warning':
+          log = console.warn;
+          break;
+      }
+      log(`[${new Date(Date.now()).toISOString()}:RENDERER:${level.toLocaleUpperCase()}] ${message} (${sourceId}:${lineNumber})`);
+    });
+  }
+
   win.on('close', (e) => {
     if (!isQuitting) {
       e.preventDefault();
@@ -109,8 +105,43 @@ async function createWindow() {
   });
 }
 
+// SQLite setup (main process only)
+const dbPath = path.join(app.getPath('userData'), 'punchin.sqlite');
+let db: Database.Database;
+
+function initDb() {
+  db = new Database(dbPath);
+  // Faster, safe journaling
+  db.pragma('journal_mode = WAL');
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      project  TEXT NOT NULL,
+      start_ms INTEGER NOT NULL,
+      end_ms   INTEGER NOT NULL
+    );
+  `);
+}
+
+function saveSession(row: { project: string; start: number; end: number }) {
+  const stmt = db.prepare(
+    'INSERT INTO sessions (project, start_ms, end_ms) VALUES (?, ?, ?)'
+  );
+  stmt.run(row.project, row.start, row.end);
+}
+
+function listSessions(): Array<Session> {
+  const stmt = db.prepare(
+    'SELECT project, start_ms AS start, end_ms AS end FROM sessions ORDER BY start_ms DESC LIMIT 2000'
+  );
+  
+  return stmt.all() as Array<Session>;
+}
+
+
 app.whenReady().then(async () => {
-  ensureDataDir();
+  //ensureDataDir();
+  initDb();
   await createWindow();
 
   tray = new Tray(nativeImage.createFromPath(
@@ -132,6 +163,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   isQuitting = true;
   if (state.running) stopTimer();
+  try { db?.close(); } catch {}
 });
 
 // IPC
@@ -139,4 +171,5 @@ ipcMain.handle('state:get', () => ({ ...state }));
 ipcMain.handle('timer:start', (_e, project: string) => { startTimer(project); return true; });
 ipcMain.handle('timer:stop', () => { stopTimer(); return true; });
 ipcMain.handle('projects:set', (_e, projects: string[]) => { state.projects = projects; updateTray(); return true; });
-ipcMain.handle('sessions:list', () => readSessions());
+ipcMain.handle('sessions:list', () => listSessions());
+ipcMain.handle('tick', () => console.log('tick')); 

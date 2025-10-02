@@ -1,4 +1,7 @@
-import { msToHMS } from '../shared/time';
+/// <reference path="../preload.d.ts" />
+
+import { msToHMS } from '../shared/time.js';
+import type { State } from '../types';
 
 const els = {
   project: document.getElementById('project-select') as HTMLSelectElement,
@@ -12,13 +15,6 @@ const els = {
   viewReports: document.getElementById('view-reports') as HTMLElement,
   reportBody: document.querySelector('#report tbody') as HTMLElement,
   saveProjects: document.getElementById('save-projects') as HTMLButtonElement
-};
-
-type State = {
-  running: boolean;
-  currentProject: string;
-  startTs: number | null;
-  projects: string[];
 };
 
 let appState: State = { running: false, currentProject: '', startTs: null, projects: [] };
@@ -73,9 +69,23 @@ els.stop.addEventListener('click', async () => {
   await renderReport();
 });
 
+async function promptProjects(current: string): Promise<string | null> {
+  const dlg = document.getElementById('projDlg') as HTMLDialogElement;
+  const input = document.getElementById('projInput') as HTMLInputElement;
+  input.value = current;
+  dlg.showModal(); // modal dialog
+  return new Promise(resolve => {
+    const onClose = () => {
+      dlg.removeEventListener('close', onClose);
+      resolve(dlg.returnValue === 'ok' ? input.value : null);
+    };
+    dlg.addEventListener('close', onClose, { once: true });
+  });
+}
+
 els.saveProjects.addEventListener('click', async () => {
   const curr = (await window.tp.getState()).projects.join(', ');
-  const input = window.prompt('Comma-separated project list:', curr);
+  const input = await promptProjects(curr);
   if (input != null) {
     const projects = input.split(',').map(s => s.trim()).filter(Boolean);
     await window.tp.setProjects(projects);
@@ -102,6 +112,7 @@ els.tabReports.addEventListener('click', async () => {
 window.tp.onTick(async () => {
   await refreshState();
 });
+
 window.tp.onSessionsUpdated(async () => {
   await renderReport();
 });
