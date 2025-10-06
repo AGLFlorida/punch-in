@@ -1,11 +1,22 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, protocol, net } from 'electron';
 import type { Event, WebContentsConsoleMessageEventParams } from 'electron';
 import path from 'node:path';
 
-import { msToHMS, elapsedNow } from './shared/time.js';
-import type { State } from './types';
+import { msToHMS, elapsedNow } from './renderer/lib/time.js';
+import type { State } from './renderer/lib/types';
 
 import { DBManager, DBManagerInterface } from './shared/data.js';
+
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'app',
+  privileges: {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    corsEnabled: true,
+    stream: true
+  }
+}]);
 
 let db: DBManagerInterface;
 
@@ -41,7 +52,7 @@ function updateTray() {
 }
 
 function startTimer(project: string) {
-  if (process.env.NODE_ENV == 'development') {
+  if (process.env.ENV == 'development') {
     console.debug("[START TIMER] called"); 
   }
 
@@ -54,11 +65,12 @@ function startTimer(project: string) {
 }
 
 function stopTimer() {
-  if (process.env.NODE_ENV == 'development') {
+  if (process.env.ENV == 'development') {
     console.debug("[STOP TIMER] called"); 
   }
   if (!state.running) return;
   const end = Date.now();
+  console.log(end);
   // const sessions = readSessions();
   // sessions.push({ project: state.currentProject, start: state.startTs!, end });
   // saveSession({ project: state.currentProject, start: state.startTs!, end });
@@ -69,9 +81,18 @@ function stopTimer() {
 }
 
 async function createWindow() {
+  protocol.handle('app', (request) => {
+    const root = path.join(process.cwd(), 'dist', 'renderer');
+    let rel = new URL(request.url).pathname; // starts with '/'
+    if (rel === '/' || rel.endsWith('/')) rel += 'index.html';
+    const filePath = path.join(root, decodeURIComponent(rel));
+    // Let Electron's file loader handle content-type, range, etc.
+    return net.fetch(`file://${filePath}`);
+  });
+
   win = new BrowserWindow({
-    width: 480,
-    height: 420,
+    width: 800,
+    height: 600,
     show: false,
     title: 'Time Punch',
     webPreferences: {
@@ -81,9 +102,9 @@ async function createWindow() {
     }
   });
 
-  await win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  await win.loadURL('app://-/index.html');
 
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.ENV === 'development') {
     win.webContents.openDevTools({ mode: 'detach', activate: true });
     win.webContents.on('console-message', (e: Event<WebContentsConsoleMessageEventParams>) => {
       const { level, message, lineNumber, sourceId } = e;

@@ -1,5 +1,5 @@
 import { msToHMS, elapsedNow } from './time';
-import type { State } from '../types';
+import type { State } from './types';
 
 test('msToHMS formats correctly', () => {
   expect(msToHMS(0)).toBe('00:00:00');

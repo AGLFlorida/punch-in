@@ -3,7 +3,7 @@ import path from 'node:path';
 import { app } from 'electron';
 import Database from 'better-sqlite3';
 
-import type { Session } from '../types';
+import type { Session } from '../renderer/lib/types';
 
 const DATA_DIR = path.join(app.getPath('userData'), 'data');
 const dbPath = path.join(app.getPath('userData'), 'punchin.sqlite');
@@ -45,6 +45,7 @@ export class DBManager implements DBManagerInterface {
   }
 
   public listSessions(project: string): Array<Session> {
+    console.log(project)
     const stmt = db.prepare(
       'SELECT project, start_ms AS start, end_ms AS end FROM sessions ORDER BY start_ms DESC LIMIT 2000'
     );
@@ -69,14 +70,14 @@ export class DBManager implements DBManagerInterface {
 
   private initDb(): PunchinDatabase {
     if (this.isInit) {
-      if (process.env.NODE_ENV == 'development') {
+      if (process.env.ENV == 'development') {
         console.log('[DB init] Tried to initialize already after initDB() called on ', DATA_DIR); 
       }
 
       return db;
     }
 
-    if (process.env.NODE_ENV == 'development') {
+    if (process.env.ENV == 'development') {
       console.log('[DB path]', DATA_DIR); 
     }
 
@@ -97,7 +98,7 @@ export class DBManager implements DBManagerInterface {
 }
 
 function createScema(db: PunchinDatabase): PunchinDatabase {
-  if (process.env.NODE_ENV == 'development') {
+  if (process.env.ENV == 'development') {
     console.log('[DEBUG:CREATE SCEHEMA]', 'Called create schema'); 
   }
 
@@ -206,7 +207,7 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
       END;
     `);
   } catch (e) {
-    if (process.env.NODE_ENV == 'development') {
+    if (process.env.ENV == 'development') {
       console.error("[DEBUG:ERROR] Error creating db schema");
     }
     throw e; // TODO: sane fallback to file storage when we can't get the db
