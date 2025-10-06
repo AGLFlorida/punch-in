@@ -1,101 +1,85 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { app } from 'electron';
 import Database from 'better-sqlite3';
+import path from 'node:path';
+import fs from 'node:fs';
+import { app } from 'electron';
 
-import type { Session } from '../renderer/lib/types';
+export type SessionRow = {
+  id: number;
+  project: string;
+  start: number;    // epoch ms
+  end: number|null; // epoch ms | null
+};
 
-const DATA_DIR = path.join(app.getPath('userData'), 'data');
-const dbPath = path.join(app.getPath('userData'), 'punchin.sqlite');
-
-type Row = { project: string; start: number; end: number };
-
-type PunchinDatabase = Database.Database;
-let db: PunchinDatabase;
-
-export interface DBManagerInterface {
-  get: () => PunchinDatabase;
-  saveSession: (x: Row) => void;
-  listSessions: (x: string) => Array<Session>;
-  closeDB: () => boolean;
+export type ProjectRow = {
+  id: number;
+  name: string;
 }
 
-export class DBManager implements DBManagerInterface {
-  private isInit: boolean = false;
+export type PunchinDatabase = Database.Database
+
+class DB {
+  private db: PunchinDatabase;
 
   constructor() {
-    this.ensureDataDir();
-    db = this.initDb();
+    const dir = app.getPath('userData');
+    const file = path.join(dir, 'punchin.db');
+    fs.mkdirSync(dir, { recursive: true });
+    this.db = new Database(file);
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('foreign_keys = ON');
+    this.init();
   }
 
-  // PUBLIC
-  public get(): PunchinDatabase {
-    return db;
+  private init() {
+    createScema(this.db);
   }
 
-  public getPath() {
-    return DATA_DIR;
+  getProjects(): string[] {
+    const rows = this.db.prepare(`SELECT name FROM project ORDER BY name`).all();
+    return rows.map((r) => (r as ProjectRow).name as string);
   }
 
-  public saveSession(row: Row) {
-    const stmt = db.prepare(
-      'INSERT INTO sessions (project, start_ms, end_ms) VALUES (?, ?, ?)'
-    );
-    stmt.run(row.project, row.start, row.end);
+  setProjects(list: string[]) {
+    const insert = this.db.prepare(`INSERT OR IGNORE INTO project(name) VALUES (?)`);
+    const tx = this.db.transaction((items: string[]) => {
+      for (const n of items) insert.run(n);
+    });
+    tx(list);
   }
 
-  public listSessions(project: string): Array<Session> {
-    console.log(project)
-    const stmt = db.prepare(
-      'SELECT project, start_ms AS start, end_ms AS end FROM sessions ORDER BY start_ms DESC LIMIT 2000'
-    );
-    
-    return stmt.all() as Array<Session>;
+  ensureProject(name: string) {
+    this.db.prepare(`INSERT OR IGNORE INTO project(name) VALUES (?)`).run(name);
   }
 
-  public closeDB(): boolean{
-    try { 
-      db.close(); 
-      return true;
-    } catch (err) {
-      console.error(`[${new Date(Date.now()).toISOString()}:ERROR:DATABASE:CLOSE]`, err)
-      return false;
-    }
+  getOpenSession(): SessionRow | null {
+    const row = this.db.prepare(`
+      SELECT id, project, start, end FROM v_session
+      WHERE end IS NULL
+      ORDER BY id DESC LIMIT 1
+    `).get();
+    return (row as SessionRow) ?? null;
   }
 
-  // PRIVATE
-  private ensureDataDir() {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  start(project: string) {
+    this.ensureProject(project);
+    // close any orphan open session (defensive)
+    this.db.prepare(`UPDATE session SET end_time = ? WHERE end_time IS NULL`).run(Date.now());
+    const p: ProjectRow = this.db.prepare(`SELECT id FROM project WHERE name = ?`).get(project) as ProjectRow;
+    this.db.prepare(`INSERT INTO session(project_id, start_time) VALUES(?, ?)`).run(p?.id, Date.now());
   }
 
-  private initDb(): PunchinDatabase {
-    if (this.isInit) {
-      if (process.env.ENV == 'development') {
-        console.log('[DB init] Tried to initialize already after initDB() called on ', DATA_DIR); 
-      }
-
-      return db;
-    }
-
-    if (process.env.ENV == 'development') {
-      console.log('[DB path]', DATA_DIR); 
-    }
-
-    db = new Database(dbPath);
-
-    try {
-      createScema(db);
-    } catch (e) {
-      console.error(e);
-      this.isInit = false;
-    }
-
-    this.isInit = true;
-
-    return db;
+  stop() {
+    this.db.prepare(`UPDATE session SET end_time = ? WHERE end_time IS NULL`).run(Date.now());
   }
-  
+
+  getSessions(): SessionRow[] {
+    return this.db.prepare(`SELECT id, project, start, end FROM v_session ORDER BY id DESC`).all() as SessionRow[];
+  }
 }
+
+export const db = new DB();
+
+
 
 function createScema(db: PunchinDatabase): PunchinDatabase {
   if (process.env.ENV == 'development') {
@@ -179,12 +163,12 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
         WHERE id = NEW.id;
       END;
 
-      -- SESSION  (quotes around start/end to avoid any keyword conflicts)
+      -- SESSION
       CREATE TABLE IF NOT EXISTS "session" (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id     INTEGER NOT NULL,
-        "start"     DATETIME NOT NULL,
-        "end"       DATETIME,                 -- allow NULL until session is closed
+        start_time     DATETIME NOT NULL,
+        end_time       DATETIME,                 
         created_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         updated_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         CONSTRAINT fk_session_task
@@ -192,8 +176,7 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
           REFERENCES "task"(id)
           ON UPDATE CASCADE
           ON DELETE CASCADE,
-        -- Optional sanity check: end >= start when end is set
-        CONSTRAINT session_time_order CHECK ("end" IS NULL OR "end" >= "start")
+        CONSTRAINT session_time_order CHECK (end_time IS NULL OR end_time >= start_time)
       );
 
       CREATE TRIGGER IF NOT EXISTS trg_session_updated_at
@@ -205,6 +188,17 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
           SET updated_at = CURRENT_TIMESTAMP
         WHERE id = NEW.id;
       END;
+
+      CREATE VIEW IF NOT EXISTS v_session AS
+      SELECT s.id,
+             p.name AS project,
+             s.start_time AS start,
+             s.end_time   AS end
+      FROM session s
+      JOIN project p ON p.id = s.task_id;
+
+      CREATE INDEX IF NOT EXISTS idx_session_open ON session(end_time);
+      CREATE INDEX IF NOT EXISTS idx_session_project ON session(task_id);
     `);
   } catch (e) {
     if (process.env.ENV == 'development') {
@@ -215,4 +209,3 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
 
   return db;
 }
-

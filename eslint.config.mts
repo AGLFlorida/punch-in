@@ -13,7 +13,7 @@ export default defineConfig([
   },
   tseslint.configs.recommended,
   {
-    files: ["src/renderer/**/*.{js,jsx,ts,tsx}"],
+    files: ["src/**/*.{js,jsx,ts,tsx}"],
     plugins: { "@next/next": next as any },
     rules: {
        ...(next as any).configs["core-web-vitals"].rules, 

@@ -2,7 +2,7 @@
   "name": "punch-in",
   "version": "1.0.0",
   "description": "A tiny Electron app to punch in/out per project, with a Mac menu bar (tray) item showing the current project and elapsed time, plus a simple 2-screen UI (Timer & Reports).",
-  "main": "dist/main.js",
+  "main": "dist/main/index.js",
   "scripts": {
     "build": "npm run clean:dist && npm run build:ui && tsc && npm run copy:assets",
     "start": "npm run build && electron .",
