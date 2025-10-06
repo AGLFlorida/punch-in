@@ -69,25 +69,48 @@ els.stop.addEventListener('click', async () => {
   await renderReport();
 });
 
-async function promptProjects(current: string): Promise<string | null> {
+async function promptProjects(current: string[]): Promise<string[] | null> {
   const dlg = document.getElementById('projDlg') as HTMLDialogElement;
   const input = document.getElementById('projInput') as HTMLInputElement;
-  input.value = current;
+  const data: string[] = [];
+
+  let lastElement: HTMLInputElement = input;
+
+  console.log("[CURRENT]",current);
+
+  for (let i = 1; i <= current.length; i++) {
+    // Clone the original input (deep clone)
+    const clone = input.cloneNode(true) as HTMLInputElement;
+
+    // Update its id and value
+    clone.id = `projInput_${i}`;
+    clone.value = current[i - 1];
+
+    data.push(clone.value);
+
+    // Insert after the last cloned element
+    lastElement.insertAdjacentElement('afterend', clone);
+
+    // Track the latest inserted element
+    lastElement = clone;
+  }
+
   dlg.showModal(); // modal dialog
+
   return new Promise(resolve => {
     const onClose = () => {
       dlg.removeEventListener('close', onClose);
-      resolve(dlg.returnValue === 'ok' ? input.value : null);
+      resolve(dlg.returnValue === 'ok' ? data : null);
     };
     dlg.addEventListener('close', onClose, { once: true });
   });
 }
 
 els.saveProjects.addEventListener('click', async () => {
-  const curr = (await window.tp.getState()).projects.join(', ');
+  const curr: string[] = (await window.tp.getState()).projects;
   const input = await promptProjects(curr);
   if (input != null) {
-    const projects = input.split(',').map(s => s.trim()).filter(Boolean);
+    const projects = curr.map(s => s.trim()).filter(Boolean);
     await window.tp.setProjects(projects);
     await refreshState();
   }

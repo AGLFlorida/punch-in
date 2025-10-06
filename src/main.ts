@@ -3,11 +3,11 @@ import type { Event, WebContentsConsoleMessageEventParams } from 'electron';
 import path from 'node:path';
 
 import { msToHMS, elapsedNow } from './shared/time.js';
-import { readSessions } from './shared/session';
 import type { State } from './types';
 
-import { saveSession, initDb, closeDB, listSessions } from './shared/data.js';
+import { DBManager, DBManagerInterface } from './shared/data.js';
 
+let db: DBManagerInterface;
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -17,14 +17,15 @@ const state: State = {
   running: false,
   currentProject: '',
   startTs: null,
-  projects: ['Client A - Website', 'Client B - Mobile App', 'Internal - Admin', 'R&D']
+  projects: []
 };
 
 function updateTray() {
   if (!tray) return;
   const labelTime = state.running ? msToHMS(elapsedNow(state)) : '00:00:00';
-  const labelProj = state.currentProject || '—';
-  tray.setTitle(`${labelTime} · ${labelProj}`);
+  const labelProj = state.currentProject || 'Empty Project';
+  console.debug("[DEBUG]", state.projects);
+  tray.setTitle(`${labelTime} * ${labelProj}`);
   const menu = Menu.buildFromTemplate([
     { label: `${labelTime} — ${labelProj}`, enabled: false },
     { type: 'separator' },
@@ -40,6 +41,10 @@ function updateTray() {
 }
 
 function startTimer(project: string) {
+  if (process.env.NODE_ENV == 'development') {
+    console.debug("[START TIMER] called"); 
+  }
+
   if (state.running) return;
   state.currentProject = project;
   state.startTs = Date.now();
@@ -49,11 +54,14 @@ function startTimer(project: string) {
 }
 
 function stopTimer() {
+  if (process.env.NODE_ENV == 'development') {
+    console.debug("[STOP TIMER] called"); 
+  }
   if (!state.running) return;
   const end = Date.now();
-  const sessions = readSessions();
-  sessions.push({ project: state.currentProject, start: state.startTs!, end });
-  saveSession({ project: state.currentProject, start: state.startTs!, end });
+  // const sessions = readSessions();
+  // sessions.push({ project: state.currentProject, start: state.startTs!, end });
+  // saveSession({ project: state.currentProject, start: state.startTs!, end });
   state.running = false;
   state.startTs = null;
   updateTray();
@@ -108,8 +116,7 @@ async function createWindow() {
 
 
 app.whenReady().then(async () => {
-  //ensureDataDir();
-  initDb();
+  db = new DBManager();
   await createWindow();
 
   tray = new Tray(nativeImage.createFromPath(
@@ -131,13 +138,20 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   isQuitting = true;
   if (state.running) stopTimer();
-  closeDB();
+  db.closeDB();
 });
 
 // IPC
 ipcMain.handle('state:get', () => ({ ...state }));
 ipcMain.handle('timer:start', (_e, project: string) => { startTimer(project); return true; });
 ipcMain.handle('timer:stop', () => { stopTimer(); return true; });
-ipcMain.handle('projects:set', (_e, projects: string[]) => { state.projects = projects; updateTray(); return true; });
-ipcMain.handle('sessions:list', () => listSessions());
+
+ipcMain.handle('projects:set', (_e, projects: string[]): boolean => {
+  console.log("projects:", projects)
+  state.projects = projects; 
+  updateTray();
+  return true; 
+});
+
+ipcMain.handle('sessions:list', () => db.listSessions("foo"));
 ipcMain.handle('tick', () => console.log('tick')); 
