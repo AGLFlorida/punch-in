@@ -6,8 +6,8 @@ import { app } from 'electron';
 export type SessionRow = {
   id: number;
   project: string;
-  start: number;    // epoch ms
-  end: number|null; // epoch ms | null
+  start: number;   
+  end: number|null;
 };
 
 export type ProjectRow = {
@@ -87,13 +87,7 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
   }
 
   try {
-    // Faster, safe journaling
-    db.pragma('journal_mode = WAL');
-    
     db.exec(`
-      -- Recommended whenever you use FKs in SQLite
-      PRAGMA foreign_keys = ON;
-
       -- COMPANY
       CREATE TABLE IF NOT EXISTS "company" (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,

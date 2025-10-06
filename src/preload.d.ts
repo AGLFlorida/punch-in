@@ -27,8 +27,8 @@ declare global {
     getSessions(): Promise<SessionRow[]>;
 
     // events
-    onTick(cb: () => void): void;
-    onSessionsUpdated(cb: () => void): void;
+    onTick(cb: () => void): () => void;
+    onSessionsUpdated(cb: () => void): () => void;
   }
 
   interface Window {

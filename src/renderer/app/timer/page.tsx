@@ -46,6 +46,21 @@ export default function TimerPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const unsubscribeTick = window.tp.onTick(() => {
+      setNowTs(Date.now());
+    });
+
+    const unsubscribeUpdated = window.tp.onSessionsUpdated(async () => {
+      setState(await window.tp.getState());
+    });
+
+    return () => {
+      unsubscribeTick?.();
+      unsubscribeUpdated?.();
+    };
+  }, []);
+
   const elapsed = useMemo(() => {
     if (state.running && state.startTs != null) {
       return nowTs - state.startTs;
