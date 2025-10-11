@@ -2,24 +2,51 @@
 
 import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
+import { ProjectRow } from 'src/main/services/project';
 
 export default function ConfigurePage() {
-  const [projectsCsv, setProjectsCsv] = useState('');
+  const [companies, setCompanies] = useState<string[]>([]);
+  const [projects, setProjects] = useState<ProjectRow[]>([{ name: '', company_id: 0 }]);
 
+  // Initialize projects from existing state
   useEffect(() => {
-    const load = async () => {
-      const s = await window.tp.getState();
-      setProjectsCsv(s.projects.join(', '));
-    };
-    load();
+    (async () => {
+      const s = await window.tp.getState(); // Do I really need state management yet?
+
+      // const initCompanies = (s.companies ?? []).map((c: string) => c);
+      // if (initCompanies.length > 0) setCompanies(initCompanies)
+
+      // const initProjects = (s.projects ?? []).map((p: string) => ({ name: p, company: '' }));
+      // if (initProjects.length > 0) setProjects(initProjects);
+
+    })();
   }, []);
 
+  const addCompany = () => setCompanies((prev) => [...prev, '']);
+  const updateCompany = (i: number, v: string) =>
+    setCompanies((prev) => prev.map((c, idx) => (idx === i ? v : c)));
+  const removeCompany = (i: number) => setCompanies((prev) => prev.filter((_, idx) => idx !== i));
+
+  // const addProject = () => 
+  //   setProjects((prev) => [...prev, { name: '', company: companies[0] ?? '' }]);
+  
+  const updateProjectName = (i: number, v: string) =>
+    setProjects((prev) => prev.map((p, idx) => (idx === i ? { ...p, name: v } : p)));
+  
+  const updateProjectCompany = (i: number, v: string) =>
+    setProjects((prev) => prev.map((p, idx) => (idx === i ? { ...p, company: v } : p)));
+  
+  const removeProject = (i: number) => setProjects((prev) => prev.filter((_, idx) => idx !== i));
+
   const onSave = async () => {
-    const list = projectsCsv
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-    await window.tp.setProjectList(list);
+    const c = companies.map(c => c.trim()).filter(Boolean);
+    await window.tp.setCompanyList(c);
+
+    // const p = projects.map(p => { return {
+    //   name: p.name.trim(), company: p.company
+    // }}).filter(Boolean);
+
+    //await window.tp.setProjectList(p);
   };
 
   return (
@@ -29,17 +56,61 @@ export default function ConfigurePage() {
         <button onClick={onSave}>Save</button>
       </div>
 
-      <div className="content">
-        <label>Projects (comma-separated)</label>
-        <textarea
-          rows={6}
-          value={projectsCsv}
-          onChange={(e) => setProjectsCsv(e.target.value)}
-          placeholder="project-a, project-b, project-c"
-        />
-        <p style={{ color: '#6b7280' }}>
-          Changes affect the Timer project list and reporting.
-        </p>
+      <div className="content" style={{ display: 'grid', gap: 24 }}>
+        {/* Companies */}
+        <section>
+          <h2 style={{ margin: '0 0 8px 0' }}>Companies</h2>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {companies.map((c, i) => (
+              <div key={`co-${i}`} className="row" style={{ alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder={`Company ${i + 1}`}
+                  value={c}
+                  onChange={(e) => updateCompany(i, e.target.value)}
+                  style={{ flex: 2, minWidth: 200 }}
+                />
+                <button onClick={() => removeCompany(i)} disabled={companies.length <= 1}>
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button onClick={addCompany}>+ Add company</button>
+          </div>
+        </section>
+
+        {/* Projects */}
+        <section>
+          <h2 style={{ margin: '0 0 8px 0' }}>Projects</h2>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {projects.map((p, i) => (
+              <div key={`proj-${i}`} className="row" style={{ alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder={`Project ${i + 1}`}
+                  value={p.name}
+                  onChange={(e) => updateProjectName(i, e.target.value)}
+                  style={{ flex: 2, minWidth: 200 }}
+                />
+                <select
+                  // value={p.company}
+                  onChange={(e) => updateProjectCompany(i, e.target.value)}
+                  style={{ flex: 1, minWidth: 160 }}
+                >
+                  {(companies.length ? companies : []).map((co) => (
+                    <option key={co} value={co}>
+                      {co || '(unnamed)'}
+                    </option>
+                  ))}
+                </select>
+                <button onClick={() => removeProject(i)} disabled={projects.length <= 1}>
+                  Remove
+                </button>
+              </div>
+            ))}
+            {/* <button onClick={addProject}>+ Add project</button> */}
+          </div>
+        </section>
       </div>
     </Sidebar>
   );

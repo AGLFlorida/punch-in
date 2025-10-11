@@ -9,7 +9,8 @@ export default function TimerPage() {
     running: false,
     currentProject: '',
     startTs: null,
-    projects: []
+    projects: [],
+    companies: []
   });
 
   const [nowTs, setNowTs] = useState<number>(Date.now());

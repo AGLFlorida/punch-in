@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
 import { app } from 'electron';
+//import { ProjectRow } from './project';
 
 export type SessionRow = {
   id: number;
@@ -10,41 +11,68 @@ export type SessionRow = {
   end: number|null;
 };
 
-export type ProjectRow = {
-  id: number;
-  name: string;
-}
-
 export type PunchinDatabase = Database.Database
 
-class DB {
-  private db: PunchinDatabase;
+export class DB {
+  db: PunchinDatabase | null = null;
+
+  private iNo: number;
 
   constructor() {
-    const dir = app.getPath('userData');
-    const file = path.join(dir, 'punchin.db');
-    fs.mkdirSync(dir, { recursive: true });
-    this.db = new Database(file);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('foreign_keys = ON');
-    this.init();
+    this.iNo = Math.random();
+    if (this.db === null) {
+      const dir = app.getPath('userData');
+      const file = path.join(dir, 'punchin.db');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      this.db = new Database(file);
+      this.db.pragma('journal_mode = WAL');
+      this.db.pragma('foreign_keys = ON');
+      this.init();
+    }
   }
 
   private init() {
-    createScema(this.db);
+    console.log("iNo:", this.iNo);
+    if (this.db) createScema(this.db);
+  }
+
+  /*
+  setCompanies(list: string[]) {
+    if (!this.db) {
+      throw new Error("db not set")
+    }
+    const insert = this.db.prepare(`INSERT OR IGNORE INTO company(name) VALUES (?)`);
+    const tx = this.db.transaction((items: string[]) => {
+      for (const n of items) insert.run(n);
+    });
+
+    try {
+      tx(list);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  setProjects(list: ProjectRow[]) {
+    const insert = this.db?.prepare(
+      `INSERT OR IGNORE INTO project(name, companyId) VALUES (?, ?)`
+    );
+    const tx = this.db.transaction((items: { name: string; companyId: number }[]) => {
+      for (const { name, companyId } of items) {
+        insert.run(name.trim(), companyId);
+      }
+    });
+
+    try {
+      tx(list);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   getProjects(): string[] {
     const rows = this.db.prepare(`SELECT name FROM project ORDER BY name`).all();
     return rows.map((r) => (r as ProjectRow).name as string);
-  }
-
-  setProjects(list: string[]) {
-    const insert = this.db.prepare(`INSERT OR IGNORE INTO project(name) VALUES (?)`);
-    const tx = this.db.transaction((items: string[]) => {
-      for (const n of items) insert.run(n);
-    });
-    tx(list);
   }
 
   ensureProject(name: string) {
@@ -74,10 +102,14 @@ class DB {
 
   getSessions(): SessionRow[] {
     return this.db.prepare(`SELECT id, project, start, end FROM v_session ORDER BY id DESC`).all() as SessionRow[];
+  } */
+
+  close() {
+    try { this.db?.close(); } catch (e) { console.error(e) }
   }
 }
 
-export const db = new DB();
+//export const db = new DB();
 
 
 

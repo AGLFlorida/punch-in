@@ -1,6 +1,9 @@
 import { Tray, Menu, nativeImage, app } from 'electron';
 // import path from 'node:path';
-import { db } from './data';
+//import { db } from './services/data';
+
+import { ServiceManager } from './services/manager';
+const services = ServiceManager.getInstance();
 
 let tray: Tray | null = null;
 let timer: NodeJS.Timeout | null = null;
@@ -39,14 +42,14 @@ export function setupTray() {
 export function updateTray() {
   if (!tray) return;
 
-  const open = db.getOpenSession();
+  const open = services.session()?.getOne(); //db.getOpenSession();
   if (!open) {
     tray.setTitle('Idle');
     tray.setToolTip('Time Punch — Idle');
     return;
   }
-  const elapsed = Date.now() - open.start;
-  const title = `${format(elapsed)} — ${open.project}`;
+  const elapsed = Date.now() //- open.start;
+  const title = "foo" //`${format(elapsed)} — ${open.project}`;
   tray.setTitle(title);
   tray.setToolTip(`Time Punch — ${title}`);
 }
