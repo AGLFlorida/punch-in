@@ -3,6 +3,7 @@
 import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
 import { msToHMS, fmtWallClock } from '@/lib/time';
+import { SessionRow } from 'src/main/services/data';
 
 export default function ReportsPage() {
   const [rows, setRows] = useState<SessionRow[]>([]);
@@ -41,7 +42,7 @@ export default function ReportsPage() {
                 <td>{r.project}</td>
                 <td>{fmtWallClock(r.start)}</td>
                 <td>{r.end ? fmtWallClock(r.end) : '—'}</td>
-                <td>{msToHMS(r.elapsedMs)}</td>
+                <td>{msToHMS(0)}</td>
               </tr>
             ))}
             {rows.length === 0 && (

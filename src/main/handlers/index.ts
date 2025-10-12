@@ -22,6 +22,7 @@ ipcMain.handle('tp:setProjectList', ph.setProjects);
 
 // company handlers
 ipcMain.handle('tp:setCompanyList', ch.setCompanies);
+ipcMain.handle('tp:getCompanyList', ch.getCompanies)
 
 // work session hanlders
 ipcMain.handle('tp:start', sessh.start);

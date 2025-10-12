@@ -2,19 +2,24 @@
 
 import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
+import { CompanyModel } from 'src/main/services/company';
 import { ProjectRow } from 'src/main/services/project';
+//import { PunchInAPI } from 'src/preload';
 
 export default function ConfigurePage() {
-  const [companies, setCompanies] = useState<string[]>([]);
+
+
+  const [companies, setCompanies] = useState<CompanyModel[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([{ name: '', company_id: 0 }]);
 
   // Initialize projects from existing state
   useEffect(() => {
+    // TODO this "page" reloads every time due to how Eletron apps work.
     (async () => {
-      const s = await window.tp.getState(); // Do I really need state management yet?
+      const cos = await window.tp.getCompanyList();
 
-      // const initCompanies = (s.companies ?? []).map((c: string) => c);
-      // if (initCompanies.length > 0) setCompanies(initCompanies)
+      const initCompanies = (cos ?? []).map((c: CompanyModel) => c);
+      if (initCompanies.length > 0) setCompanies(initCompanies)
 
       // const initProjects = (s.projects ?? []).map((p: string) => ({ name: p, company: '' }));
       // if (initProjects.length > 0) setProjects(initProjects);
@@ -22,10 +27,17 @@ export default function ConfigurePage() {
     })();
   }, []);
 
-  const addCompany = () => setCompanies((prev) => [...prev, '']);
-  const updateCompany = (i: number, v: string) =>
-    setCompanies((prev) => prev.map((c, idx) => (idx === i ? v : c)));
-  const removeCompany = (i: number) => setCompanies((prev) => prev.filter((_, idx) => idx !== i));
+  const addCompany = () => {
+    setCompanies((prev) => [...prev, { name: ''}]);
+  }
+  
+  const updateCompany = (i: number, v: string) => {
+    setCompanies((prev) => prev.map((c, idx) => (idx === i ? {name: v} : c)));
+  }
+  
+  const removeCompany = (i: number) => {
+    setCompanies((prev) => prev.filter((_, idx) => idx !== i));
+  }
 
   // const addProject = () => 
   //   setProjects((prev) => [...prev, { name: '', company: companies[0] ?? '' }]);
@@ -39,7 +51,7 @@ export default function ConfigurePage() {
   const removeProject = (i: number) => setProjects((prev) => prev.filter((_, idx) => idx !== i));
 
   const onSave = async () => {
-    const c = companies.map(c => c.trim()).filter(Boolean);
+    const c = companies.map(c => c);
     await window.tp.setCompanyList(c);
 
     // const p = projects.map(p => { return {
@@ -66,7 +78,7 @@ export default function ConfigurePage() {
                 <input
                   type="text"
                   placeholder={`Company ${i + 1}`}
-                  value={c}
+                  value={c.name}
                   onChange={(e) => updateCompany(i, e.target.value)}
                   style={{ flex: 2, minWidth: 200 }}
                 />
@@ -98,8 +110,8 @@ export default function ConfigurePage() {
                   style={{ flex: 1, minWidth: 160 }}
                 >
                   {(companies.length ? companies : []).map((co) => (
-                    <option key={co} value={co}>
-                      {co || '(unnamed)'}
+                    <option key={co.id} value={co.name}>
+                      {co.name || ''}
                     </option>
                   ))}
                 </select>

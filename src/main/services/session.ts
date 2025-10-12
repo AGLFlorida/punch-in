@@ -6,6 +6,15 @@ export interface SessionRow {
   end_time: Date;
 }
 
+// export interface SessionRow {
+//   id: number;
+//   project: string;
+//   start: number; // epoch ms
+//   end: number | null;
+//   elapsedMs: number;
+// }
+
+
 
 export interface Session extends SessionRow {
   id: number;

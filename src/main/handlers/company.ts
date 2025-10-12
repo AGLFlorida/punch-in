@@ -1,15 +1,30 @@
 import type { ServiceManager } from "../services/manager";
 import type { IpcMainInvokeEvent } from 'electron';
-import type { CompanyRow } from '../services/company';
+import type { CompanyModel } from '../services/company';
+
 
 export const companyHandler = (services: ServiceManager) => {
+  const svc = services.company();
+
   return {
-    setCompanies: async (_e: IpcMainInvokeEvent, companies: string[]) => {
-      const _c = services.company()?.toCompanyRow(companies) as CompanyRow[];
+    setCompanies: (_e: IpcMainInvokeEvent, companies: string[]) => {
+      if (!svc) {
+        throw new Error("Company service not initialized.")
+      }
+
+      const _c = companies//svc.toCompanyModel(companies);
+
       if (_c.length > 0) {
-        services.company()?.set(_c)
+        console.info("save:", _c);
+        //svc.set(_c) // TODO: break the save for now.
       }
     },
-    getCompanies: () => { console.log("TO BE IMPLEMENTED"); }
+    getCompanies: (): CompanyModel[] => { 
+      if (!svc) {
+        throw new Error("Company service not initialized.")
+      }
+
+      return svc.get() ?? [];
+    }
   }
 }
