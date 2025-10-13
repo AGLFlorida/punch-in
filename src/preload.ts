@@ -8,9 +8,11 @@ contextBridge.exposeInMainWorld('tp', {
   start: (project: string) => ipcRenderer.invoke('tp:start', project),
   stop: () => ipcRenderer.invoke('tp:stop'),
   setProjectList: (projects: ProjectRow[]) => ipcRenderer.invoke('tp:setProjectList', projects),
+  getProjectList: (): Promise<ProjectModel[]> => ipcRenderer.invoke('tp:getProjectList');
   setCompanyList: (companies: CompanyModel[]) => ipcRenderer.invoke('tp:setCompanyList', companies),
   getCompanyList: (): Promise<CompanyModel[]> => ipcRenderer.invoke('tp:getCompanyList'),
   getSessions: () => ipcRenderer.invoke('tp:getSessions'),
+  removeCompany: (id: number) => ipcRenderer.invoke('tp:removeCompany', id),
 
   onTick: (cb: () => void) => {
     const fn = () => cb();
@@ -23,31 +25,6 @@ contextBridge.exposeInMainWorld('tp', {
     return () => ipcRenderer.off('tp:sessionsUpdated', fn);
   }
 });
-
-export interface PunchInState {
-  running: boolean;
-  currentProject: string;
-  startTs: number | null; // epoch ms
-  projects: string[];
-  companies: string[];
-}
-
-export interface PunchInAPI {
-  // state & control
-  getState(): Promise<PunchInState>;
-  start(project: string): Promise<void>;
-  stop(): Promise<void>;
-  setProjectList(projects: ProjectRow[]): Promise<void>;
-  setCompanyList(companies: string[]): Promise<void>;
-  getCompanyList(): Promise<CompanyModel[]>
-
-  // reporting
-  getSessions(): Promise<SessionRow[]>;
-
-  // events
-  onTick(cb: () => void): () => void;
-  onSessionsUpdated(cb: () => void): () => void;
-}
 
 
 //TODO: when wifi is off, "[93246:1012/104242.984066:WARNING:net/dns/dns_config_service_posix.cc:203] Failed to read DnsConfig."

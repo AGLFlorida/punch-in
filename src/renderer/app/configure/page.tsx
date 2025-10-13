@@ -1,10 +1,9 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { CompanyModel } from 'src/main/services/company';
 import { ProjectRow } from 'src/main/services/project';
-//import { PunchInAPI } from 'src/preload';
 
 export default function ConfigurePage() {
   const [companies, setCompanies] = useState<CompanyModel[]>([]);
@@ -13,14 +12,14 @@ export default function ConfigurePage() {
 
   // Initialize projects from existing state
   useEffect(() => {
-    // TODO this "page" reloads every time due to how Eletron apps work.
     (async () => {
       const cos = await window.tp.getCompanyList();
+      const projs = await window.tp.getProjectList();
 
       const initCompanies = (cos ?? []).map((c: CompanyModel) => c);
       if (initCompanies.length > 0) {
+        //console.log("init companies:", initCompanies.map((c: CompanyModel) => c.id));
         setCompanies(initCompanies);
-        //originalCo.current = initCompanies;
       }
 
       // const initProjects = (s.projects ?? []).map((p: string) => ({ name: p, company: '' }));
@@ -56,14 +55,23 @@ export default function ConfigurePage() {
   const removeProject = (i: number) => setProjects((prev) => prev.filter((_, idx) => idx !== i));
 
   const onSave = async () => {
+    if (deletedCompanies.length > 0) {
+      for (const i in deletedCompanies) {
+        if (deletedCompanies[i].id) await window.tp.removeCompany(deletedCompanies[i].id);
+      }
+      setDeletedCompanies([]); // need to reset state after mutation.
+    }
+
     const c = companies.map(c => c);
     await window.tp.setCompanyList(c);
+    setCompanies(c); // need to reset state after mutation.
 
     // const p = projects.map(p => { return {
     //   name: p.name.trim(), company: p.company
     // }}).filter(Boolean);
 
     //await window.tp.setProjectList(p);
+
   };
 
   return (

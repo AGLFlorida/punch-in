@@ -16,7 +16,7 @@ export const companyHandler = (services: ServiceManager) => {
 
       if (_c.length > 0) {
         console.info("save:", _c);
-        //svc.set(_c) // TODO: break the save for now.
+        svc.set(_c)
       }
     },
     getCompanies: (): CompanyModel[] => { 
@@ -25,6 +25,9 @@ export const companyHandler = (services: ServiceManager) => {
       }
 
       return svc.get() ?? [];
+    },
+    delCompany: (_e: IpcMainInvokeEvent, id: number): boolean => {
+      return svc?.remove({id: id} as CompanyModel) ?? false;
     }
   }
 }

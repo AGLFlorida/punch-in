@@ -10,7 +10,7 @@ export async function createMainWindow() {
       contextIsolation: true,
       sandbox: true
     }
-  });  
+  });
   await win.loadURL('app://-/index.html'); // served by protocol.ts
   return win;
 }

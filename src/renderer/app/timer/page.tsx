@@ -3,7 +3,7 @@
 import Sidebar from '@/components/Sidebar';
 import { useEffect, useMemo, useState } from 'react';
 import { fmtWallClock, msToHMS } from '@/lib/time';
-import { PunchInState } from '../../../preload';
+// import { PunchInState } from '../../../preload';
 
 export default function TimerPage() {
   const [state, setState] = useState<PunchInState>({

@@ -1,56 +1,127 @@
 import { ServiceInterface } from "./service";
 import type { PunchinDatabase } from "./data";
 
+type DateType = string;
+
 export interface CompanyModel {
   id?: number;
   name: string;
+  is_active?: boolean;
+  deleted_at?: DateType;
+  updated_at?: DateType;
+  created_at?: DateType;
 }
 
 export class CompanyService implements ServiceInterface<CompanyModel> {
-    db: PunchinDatabase | null = null;
-  
-    constructor(db: PunchinDatabase) {
-      if (!this.db) {
-        this.db = db;
-      }
+  db: PunchinDatabase | null = null;
+
+  constructor(db: PunchinDatabase) {
+    if (!this.db) {
+      this.db = db;
     }
+  }
+
+  getByName(n: string): CompanyModel {
+    const row = this.db?.prepare(`
+      SELECT id, name 
+      FROM company
+      WHERE name in (?)
+      ORDER BY id DESC
+    `).get(n);
+    return (row as CompanyModel) ?? null;
+  }
   
   getOne(id: number): CompanyModel {
     const row = this.db?.prepare(`
       SELECT id, name 
       FROM company
       WHERE id = ?
+      AND is_active = 1
       ORDER BY id DESC LIMIT 1
     `).get(id);
     return (row as CompanyModel) ?? null;
   }
 
-  set(companyList: CompanyModel[]): boolean { // TODO: This allows duplicate company names.
+  set(companyList: CompanyModel[]): boolean {
     const insert = this.db?.prepare(`INSERT OR IGNORE INTO company(name) VALUES (?)`);
-    console.log(companyList);
+    const filteredList: CompanyModel[] = companyList.filter((c: CompanyModel) => c.id == undefined);
+
+    if (filteredList.length < 1) {
+      console.info("[company::set] Nothing to update.")
+      return false;
+    }
+
+    const namesOnly: string[] = filteredList.map((c: CompanyModel) => c.name);
+    let has_one: CompanyModel[] = [];
+    for(const i in namesOnly) {
+      const gbn = this.getByName(namesOnly[i]);
+      if (gbn) has_one.push(gbn);
+    }
+
+    let toBeAdded: CompanyModel[];
+    if (has_one && has_one.length) {
+      console.info(`[company::set] Company with name(s) '${has_one.map((c: CompanyModel) => c.name)}' already exist(s).`);
+      for (const i in has_one) {
+        if (has_one[i].id) this.activate(has_one[i].id);
+      }
+
+      const ids_only = has_one.map((c: CompanyModel) => c.id);
+
+      toBeAdded = filteredList.filter((c: CompanyModel) => !ids_only.includes(c.id as number));
+    } else {
+      toBeAdded = filteredList;
+    }
+
     const tx = this.db?.transaction((items: CompanyModel[]) => {
       for (const { name } of items) {
         insert?.run(name.trim());
       }
     });
-  
-    tx?.(companyList); // TODO: need better guardrails here.
-      
+
+    tx?.(toBeAdded); // TODO: need better guardrails here.
+        
+    
     return true; 
   }
 
   get(): CompanyModel[] {
-    return this.db?.prepare(`SELECT id, name FROM company ORDER BY id DESC`).all() as CompanyModel[];
+    return this.db?.prepare(`
+      SELECT id, name, is_active, deleted_at, updated_at, created_at 
+      FROM company 
+      WHERE is_active = 1
+      ORDER BY id DESC`).all() as CompanyModel[];
   }
 
-  // TODO: soft deletes only....?
   remove(c: CompanyModel): boolean {
     if (!c.id) {
       return false;
     }
 
-    //const delete = 
-    return true;
+    const del = this.db?.prepare(`
+      UPDATE company
+      SET is_active = 0
+      WHERE id = ?`).run(c.id);
+
+    if (del?.changes && del?.changes > 0) {
+      console.log("removed: ", del?.lastInsertRowid);
+      return true;
+    }
+
+    return false;
+  }
+
+  activate(id: number): boolean {
+    const upd = this.db?.prepare(`
+      UPDATE company
+      SET is_active = 1
+      WHERE id = ?`).run(id);
+
+    if (upd?.changes && upd?.changes > 0) {
+      console.log(`updated ${upd?.changes} rows`);
+      return true;
+    }
+
+    return false;
   }
 
   removeMany(cs: CompanyModel[]): boolean {

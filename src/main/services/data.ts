@@ -124,10 +124,16 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
       CREATE TABLE IF NOT EXISTS "company" (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         name        TEXT NOT NULL,
+        is_active   BOOLEAN NOT NULL DEFAULT 1,
+        deleted_at  DATETIME,
         created_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         updated_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         CONSTRAINT company_name_len CHECK (length(name) <= 32)
       );
+
+      CREATE INDEX IF NOT EXISTS idx_company_active
+      ON company (id)
+      WHERE is_active = 1;
 
       CREATE TRIGGER IF NOT EXISTS trg_company_updated_at
       AFTER UPDATE ON "company"
@@ -139,11 +145,23 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
         WHERE id = NEW.id;
       END;
 
+      CREATE TRIGGER IF NOT EXISTS company_deleted_at_on_deactivate
+      AFTER UPDATE ON "company"
+      FOR EACH ROW
+      WHEN NEW.is_active = 0 AND OLD.is_active = 1
+      BEGIN
+        UPDATE "company"
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.id;
+      END;
+
       -- PROJECT
       CREATE TABLE IF NOT EXISTS "project" (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         name        TEXT NOT NULL,
         company_id  INTEGER NOT NULL,
+        is_active   BOOLEAN NOT NULL DEFAULT 1,
+        deleted_at  DATETIME,
         created_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         updated_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         CONSTRAINT project_name_len CHECK (length(name) <= 32),
@@ -153,6 +171,10 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
           ON UPDATE CASCADE
           ON DELETE CASCADE
       );
+
+      CREATE INDEX IF NOT EXISTS idx_project_active
+      ON project (id)
+      WHERE is_active = 1;
 
       CREATE TRIGGER IF NOT EXISTS trg_project_updated_at
       AFTER UPDATE ON "project"
@@ -164,11 +186,23 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
         WHERE id = NEW.id;
       END;
 
+      CREATE TRIGGER IF NOT EXISTS proj_deleted_at_on_deactivate
+      AFTER UPDATE ON "project"
+      FOR EACH ROW
+      WHEN NEW.is_active = 0 AND OLD.is_active = 1
+      BEGIN
+        UPDATE "project"
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.id;
+      END;
+
       -- TASK
       CREATE TABLE IF NOT EXISTS "task" (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         name        TEXT NOT NULL,
         project_id  INTEGER NOT NULL,
+        is_active   BOOLEAN NOT NULL DEFAULT 1,
+        deleted_at  DATETIME,
         created_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         updated_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         CONSTRAINT task_name_len CHECK (length(name) <= 32),
@@ -178,6 +212,10 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
           ON UPDATE CASCADE
           ON DELETE CASCADE
       );
+
+      CREATE INDEX IF NOT EXISTS idx_task_active
+      ON task (id)
+      WHERE is_active = 1;
 
       CREATE TRIGGER IF NOT EXISTS trg_task_updated_at
       AFTER UPDATE ON "task"
@@ -189,12 +227,24 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
         WHERE id = NEW.id;
       END;
 
+      CREATE TRIGGER IF NOT EXISTS task_deleted_at_on_deactivate
+      AFTER UPDATE ON "task"
+      FOR EACH ROW
+      WHEN NEW.is_active = 0 AND OLD.is_active = 1
+      BEGIN
+        UPDATE "task"
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.id;
+      END;
+
       -- SESSION
       CREATE TABLE IF NOT EXISTS "session" (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id     INTEGER NOT NULL,
         start_time     DATETIME NOT NULL,
-        end_time       DATETIME,                 
+        end_time       DATETIME, 
+        is_active   BOOLEAN NOT NULL DEFAULT 1,
+        deleted_at  DATETIME,                
         created_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         updated_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         CONSTRAINT fk_session_task
@@ -205,6 +255,10 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
         CONSTRAINT session_time_order CHECK (end_time IS NULL OR end_time >= start_time)
       );
 
+      CREATE INDEX IF NOT EXISTS idx_session_active
+      ON session (id)
+      WHERE is_active = 1;
+
       CREATE TRIGGER IF NOT EXISTS trg_session_updated_at
       AFTER UPDATE ON "session"
       FOR EACH ROW
@@ -212,6 +266,16 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
       BEGIN
         UPDATE "session"
           SET updated_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.id;
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS session_deleted_at_on_deactivate
+      AFTER UPDATE ON "session"
+      FOR EACH ROW
+      WHEN NEW.is_active = 0 AND OLD.is_active = 1
+      BEGIN
+        UPDATE "session"
+        SET deleted_at = CURRENT_TIMESTAMP
         WHERE id = NEW.id;
       END;
 
