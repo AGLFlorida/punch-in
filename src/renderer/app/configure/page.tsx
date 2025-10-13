@@ -1,16 +1,15 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { CompanyModel } from 'src/main/services/company';
 import { ProjectRow } from 'src/main/services/project';
 //import { PunchInAPI } from 'src/preload';
 
 export default function ConfigurePage() {
-
-
   const [companies, setCompanies] = useState<CompanyModel[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([{ name: '', company_id: 0 }]);
+  const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
 
   // Initialize projects from existing state
   useEffect(() => {
@@ -19,7 +18,10 @@ export default function ConfigurePage() {
       const cos = await window.tp.getCompanyList();
 
       const initCompanies = (cos ?? []).map((c: CompanyModel) => c);
-      if (initCompanies.length > 0) setCompanies(initCompanies)
+      if (initCompanies.length > 0) {
+        setCompanies(initCompanies);
+        //originalCo.current = initCompanies;
+      }
 
       // const initProjects = (s.projects ?? []).map((p: string) => ({ name: p, company: '' }));
       // if (initProjects.length > 0) setProjects(initProjects);
@@ -34,9 +36,12 @@ export default function ConfigurePage() {
   const updateCompany = (i: number, v: string) => {
     setCompanies((prev) => prev.map((c, idx) => (idx === i ? {name: v} : c)));
   }
-  
+
   const removeCompany = (i: number) => {
     setCompanies((prev) => prev.filter((_, idx) => idx !== i));
+    const _delCo = deletedCompanies;
+    _delCo.push(companies[i]);
+    setDeletedCompanies(_delCo);
   }
 
   // const addProject = () => 

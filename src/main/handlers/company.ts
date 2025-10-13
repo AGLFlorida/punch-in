@@ -7,7 +7,7 @@ export const companyHandler = (services: ServiceManager) => {
   const svc = services.company();
 
   return {
-    setCompanies: (_e: IpcMainInvokeEvent, companies: string[]) => {
+    setCompanies: (_e: IpcMainInvokeEvent, companies: CompanyModel[]) => {
       if (!svc) {
         throw new Error("Company service not initialized.")
       }

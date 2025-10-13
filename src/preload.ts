@@ -48,3 +48,6 @@ export interface PunchInAPI {
   onTick(cb: () => void): () => void;
   onSessionsUpdated(cb: () => void): () => void;
 }
+
+
+//TODO: when wifi is off, "[93246:1012/104242.984066:WARNING:net/dns/dns_config_service_posix.cc:203] Failed to read DnsConfig."

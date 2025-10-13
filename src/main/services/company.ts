@@ -43,6 +43,20 @@ export class CompanyService implements ServiceInterface<CompanyModel> {
     return this.db?.prepare(`SELECT id, name FROM company ORDER BY id DESC`).all() as CompanyModel[];
   }
 
+  // TODO: soft deletes only....?
+  remove(c: CompanyModel): boolean {
+    if (!c.id) {
+      return false;
+    }
+
+    //const delete = 
+    return true;
+  }
+
+  removeMany(cs: CompanyModel[]): boolean {
+    return false;
+  }
+
   toCompanyModel(companies: string[]): CompanyModel[] {
     const _c: CompanyModel[] = [];
     for (let i = 0; i < companies.length; i++) {
