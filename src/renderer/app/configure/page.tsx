@@ -3,18 +3,19 @@
 import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
 import { CompanyModel } from 'src/main/services/company';
-import { ProjectRow } from 'src/main/services/project';
+import { ProjectModel } from 'src/main/services/project';
 
 export default function ConfigurePage() {
   const [companies, setCompanies] = useState<CompanyModel[]>([]);
-  const [projects, setProjects] = useState<ProjectRow[]>([{ name: '', company_id: 0 }]);
+  const [projects, setProjects] = useState<ProjectModel[]>([{ name: '', company_id: -1 }]);
   const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
 
   // Initialize projects from existing state
   useEffect(() => {
     (async () => {
       const cos = await window.tp.getCompanyList();
-      const projs = await window.tp.getProjectList();
+      //const projs = await window.tp.getProjectList();
+      //console.log("projects:", projs)
 
       const initCompanies = (cos ?? []).map((c: CompanyModel) => c);
       if (initCompanies.length > 0) {
@@ -94,6 +95,7 @@ export default function ConfigurePage() {
                   value={c.name}
                   onChange={(e) => updateCompany(i, e.target.value)}
                   style={{ flex: 2, minWidth: 200 }}
+                  disabled={(c.id !== undefined && c.id > 0)}
                 />
                 <button onClick={() => removeCompany(i)} disabled={companies.length <= 1}>
                   Remove

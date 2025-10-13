@@ -1,15 +1,10 @@
 import { ServiceInterface } from "./service";
 import type { PunchinDatabase } from "./data";
+import { BaseModel } from './types';
 
-type DateType = string;
-
-export interface CompanyModel {
+export interface CompanyModel extends BaseModel {
   id?: number;
   name: string;
-  is_active?: boolean;
-  deleted_at?: DateType;
-  updated_at?: DateType;
-  created_at?: DateType;
 }
 
 export class CompanyService implements ServiceInterface<CompanyModel> {

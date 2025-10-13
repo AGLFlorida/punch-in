@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ProjectRow } from './main/services/project';
+import type { ProjectModel } from './main/services/project';
 import type { CompanyModel } from './main/services/company';
 import type { SessionRow } from './main/services/data';
 
@@ -7,8 +7,8 @@ contextBridge.exposeInMainWorld('tp', {
   getState: () => ipcRenderer.invoke('tp:getState'),
   start: (project: string) => ipcRenderer.invoke('tp:start', project),
   stop: () => ipcRenderer.invoke('tp:stop'),
-  setProjectList: (projects: ProjectRow[]) => ipcRenderer.invoke('tp:setProjectList', projects),
-  getProjectList: (): Promise<ProjectModel[]> => ipcRenderer.invoke('tp:getProjectList');
+  setProjectList: (projects: ProjectModel[]) => ipcRenderer.invoke('tp:setProjectList', projects),
+  getProjectList: (): Promise<ProjectModel[]> => ipcRenderer.invoke('tp:getProjectList'),
   setCompanyList: (companies: CompanyModel[]) => ipcRenderer.invoke('tp:setCompanyList', companies),
   getCompanyList: (): Promise<CompanyModel[]> => ipcRenderer.invoke('tp:getCompanyList'),
   getSessions: () => ipcRenderer.invoke('tp:getSessions'),
