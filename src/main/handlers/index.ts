@@ -19,6 +19,8 @@ ipcMain.handle('tp:getState', sh.getState);
 
 // project handlers
 ipcMain.handle('tp:setProjectList', ph.setProjects);
+ipcMain.handle('tp:getProjectList', ph.getProjects)
+ipcMain.handle('tp:removeProject', ph.delProject)
 
 // company handlers
 ipcMain.handle('tp:setCompanyList', ch.setCompanies);

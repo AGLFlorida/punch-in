@@ -9,11 +9,12 @@ declare global {
     getState(): Promise<PunchInState>;
     start(project: string): Promise<void>;
     stop(): Promise<void>;
-    setProjectList(projects: ProjectRow[]): Promise<void>;
+    setProjectList(projects: ProjectModel[]): Promise<void>;
     getProjectList(): Promise<ProjectModel[]>;
+    removeProject(id: number): Promise<boolean>;
     setCompanyList(companies: CompanyModel[]): Promise<void>;
     getCompanyList(): Promise<CompanyModel[]>;
-    removeCompany(id: number): Promise<boolean>
+    removeCompany(id: number): Promise<boolean>;
 
     // reporting
     getSessions(): Promise<SessionRow[]>;

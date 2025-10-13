@@ -7,24 +7,21 @@ import { ProjectModel } from 'src/main/services/project';
 
 export default function ConfigurePage() {
   const [companies, setCompanies] = useState<CompanyModel[]>([]);
-  const [projects, setProjects] = useState<ProjectModel[]>([{ name: '', company_id: -1 }]);
+  const [projects, setProjects] = useState<ProjectModel[]>([]);
   const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
+  const [deletedProjects, setDeletedProjects] = useState<ProjectModel[]>([]);
 
   // Initialize projects from existing state
   useEffect(() => {
     (async () => {
       const cos = await window.tp.getCompanyList();
-      //const projs = await window.tp.getProjectList();
-      //console.log("projects:", projs)
+      const projs = await window.tp.getProjectList();
 
-      const initCompanies = (cos ?? []).map((c: CompanyModel) => c);
-      if (initCompanies.length > 0) {
-        //console.log("init companies:", initCompanies.map((c: CompanyModel) => c.id));
-        setCompanies(initCompanies);
-      }
+      //const initCompanies = (cos ?? []).map((c: CompanyModel) => c);
+      if (cos.length > 0) setCompanies(cos);
 
-      // const initProjects = (s.projects ?? []).map((p: string) => ({ name: p, company: '' }));
-      // if (initProjects.length > 0) setProjects(initProjects);
+      //const initProjects = (projs ?? []).map((p: ProjectModel) => ({ name: p.name, company_id: p.company_id }));
+      if (projs.length > 0) setProjects(projs);
 
     })();
   }, []);
@@ -44,16 +41,25 @@ export default function ConfigurePage() {
     setDeletedCompanies(_delCo);
   }
 
-  // const addProject = () => 
-  //   setProjects((prev) => [...prev, { name: '', company: companies[0] ?? '' }]);
+  const addProject = () => 
+    setProjects((prev) => [...prev, { name: '', company_id: -1 }]);
   
   const updateProjectName = (i: number, v: string) =>
     setProjects((prev) => prev.map((p, idx) => (idx === i ? { ...p, name: v } : p)));
   
-  const updateProjectCompany = (i: number, v: string) =>
-    setProjects((prev) => prev.map((p, idx) => (idx === i ? { ...p, company: v } : p)));
+  const updateProjectCompany = (i: number, v: number) => {
+    return setProjects((prev) => prev.map((p, idx) => (idx === i ? {
+       ...p, 
+       company_id: v 
+      } : p)));
+    }
   
-  const removeProject = (i: number) => setProjects((prev) => prev.filter((_, idx) => idx !== i));
+  const removeProject = (i: number) => {
+    setProjects((prev) => prev.filter((_, idx) => idx !== i));
+    const _delProj = deletedProjects;
+    _delProj.push(projects[i])
+    setDeletedProjects(_delProj);
+  }
 
   const onSave = async () => {
     if (deletedCompanies.length > 0) {
@@ -63,15 +69,24 @@ export default function ConfigurePage() {
       setDeletedCompanies([]); // need to reset state after mutation.
     }
 
-    const c = companies.map(c => c);
-    await window.tp.setCompanyList(c);
-    setCompanies(c); // need to reset state after mutation.
+    //const c = companies.map(c => c);
+    const filteredCompanies = companies.filter((c: CompanyModel) => c.name.trim() != "")
+    await window.tp.setCompanyList(filteredCompanies);
+    //setCompanies(companies); // need to reset state after mutation.
 
     // const p = projects.map(p => { return {
-    //   name: p.name.trim(), company: p.company
+    //   name: p.name.trim(), company: p.company_id
     // }}).filter(Boolean);
 
-    //await window.tp.setProjectList(p);
+    if (deletedProjects.length > 0) {
+      for (const i in deletedProjects) {
+        if (deletedProjects[i].id) await window.tp.removeProject(deletedProjects[i].id);
+      }
+      setDeletedProjects([]); // need to reset state after mutation.
+    }
+
+    const filteredProjects = projects.filter((p: ProjectModel) => p.company_id != -1)
+    await window.tp.setProjectList(filteredProjects);
 
   };
 
@@ -120,12 +135,12 @@ export default function ConfigurePage() {
                   style={{ flex: 2, minWidth: 200 }}
                 />
                 <select
-                  // value={p.company}
-                  onChange={(e) => updateProjectCompany(i, e.target.value)}
+                  onChange={(e) => updateProjectCompany(i, Number(e.target.value))}
                   style={{ flex: 1, minWidth: 160 }}
                 >
+                  <option key={-1} value={-1}>{'Select a company'} </option>
                   {(companies.length ? companies : []).map((co) => (
-                    <option key={co.id} value={co.name}>
+                    <option key={co.id} value={co.id} selected={co.id == p.company_id}>
                       {co.name || ''}
                     </option>
                   ))}
@@ -135,7 +150,7 @@ export default function ConfigurePage() {
                 </button>
               </div>
             ))}
-            {/* <button onClick={addProject}>+ Add project</button> */}
+            <button onClick={addProject}>+ Add project</button>
           </div>
         </section>
       </div>

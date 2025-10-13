@@ -22,7 +22,7 @@ export class CompanyService implements ServiceInterface<CompanyModel> {
       FROM company
       WHERE name in (?)
       ORDER BY id DESC
-    `).get(n);
+    `).get(n.trim());
     return (row as CompanyModel) ?? null;
   }
   
@@ -111,15 +111,11 @@ export class CompanyService implements ServiceInterface<CompanyModel> {
       SET is_active = 1
       WHERE id = ?`).run(id);
 
-    if (upd?.changes && upd?.changes > 0) {
-      console.log(`updated ${upd?.changes} rows`);
-      return true;
-    }
-
-    return false;
+    return (upd?.changes !== undefined && upd?.changes > 0);
   }
 
   removeMany(cs: CompanyModel[]): boolean {
+    console.debug(cs);
     return false;
   }
 

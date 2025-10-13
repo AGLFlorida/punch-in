@@ -9,8 +9,14 @@ export async function createMainWindow() {
       preload: path.join(__dirname, '../preload.js'),
       contextIsolation: true,
       sandbox: true
-    }
+    }, 
   });
   await win.loadURL('app://-/index.html'); // served by protocol.ts
+  
+  if (process.env.ENV === "development") {
+    console.info(`ENV: ${process.env.ENV}, Opening Dev tools`)
+    win.webContents.openDevTools();
+  }
+  
   return win;
 }

@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('tp', {
   stop: () => ipcRenderer.invoke('tp:stop'),
   setProjectList: (projects: ProjectModel[]) => ipcRenderer.invoke('tp:setProjectList', projects),
   getProjectList: (): Promise<ProjectModel[]> => ipcRenderer.invoke('tp:getProjectList'),
+  removeProject: (id: number) => ipcRenderer.invoke('tp:removeProject', id), 
   setCompanyList: (companies: CompanyModel[]) => ipcRenderer.invoke('tp:setCompanyList', companies),
   getCompanyList: (): Promise<CompanyModel[]> => ipcRenderer.invoke('tp:getCompanyList'),
   getSessions: () => ipcRenderer.invoke('tp:getSessions'),

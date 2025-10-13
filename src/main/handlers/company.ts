@@ -7,7 +7,7 @@ export const companyHandler = (services: ServiceManager) => {
   const svc = services.company();
 
   return {
-    setCompanies: (_e: IpcMainInvokeEvent, companies: CompanyModel[]) => {
+    setCompanies: (_e: IpcMainInvokeEvent, companies: CompanyModel[]): boolean => {
       if (!svc) {
         throw new Error("Company service not initialized.")
       }
@@ -15,9 +15,11 @@ export const companyHandler = (services: ServiceManager) => {
       const _c = companies//svc.toCompanyModel(companies);
 
       if (_c.length > 0) {
-        console.info("save:", _c);
-        svc.set(_c)
+        //console.info("save:", _c);
+        return svc.set(_c)
       }
+
+      return false;
     },
     getCompanies: (): CompanyModel[] => { 
       if (!svc) {
@@ -27,7 +29,13 @@ export const companyHandler = (services: ServiceManager) => {
       return svc.get() ?? [];
     },
     delCompany: (_e: IpcMainInvokeEvent, id: number): boolean => {
-      return svc?.remove({id: id} as CompanyModel) ?? false;
+      if (!svc) {
+        throw new Error("Company service not initialized.")
+      }
+
+      if (!id) return false;
+
+      return svc.remove({id: id} as CompanyModel) ?? false;
     }
   }
 }
