@@ -1,118 +1,124 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { fmtWallClock, msToHMS } from '@/lib/time';
 import { TaskModel } from 'src/main/services/task';
 import { ProjectModel } from 'src/main/services/project';
 
-export default function TimerPage() {
-  const [state, setState] = useState<PunchInState>({
-    running: false,
-    currentTask: {} as TaskModel,
-    startTs: null
-  });
+// TODO the running timer doesn't always refresh properly, making it look like we are skipping seconds.
 
+export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [newTask, toggleNewTask] = useState<boolean>(tasks.length === 0);
   const [taskName, setTaskName] = useState<string>();
   const [projects, setProjects] = useState<ProjectModel[]>([]);
-  const [currentTask, setCurrentTask] = useState<TaskModel>()
   const [nowTs, setNowTs] = useState<number>(Date.now());
+  const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [startTs, setStartTs] = useState<number | null>(null);
+
+  const currentTask = useRef<TaskModel>(null);
+  const setCurrentTask = (t: TaskModel) => {
+    currentTask.current = t;
+  }
+
+  // TODO: what about timezones?
 
   // Initial load + event hooks
   useEffect(() => {
-    let mounted = true;
-
     const load = async () => {
-      //const s = await window.tp.getState();
       const t = await window.tp.getTasks();
       const p = await window.tp.getProjectList();
-      if (mounted) { 
-        //setState(s);
-        setTasks(t);
-        setProjects(p);
-      }
+      setTasks(t);
+      setProjects(p);
     };
     load();
-
-    // const onTick = async () => {
-    //   setNowTs(Date.now());
-    //   const s = await window.tp.getState();
-    //   setState(s);
-    // };
-
-    // const onSessionsUpdated = async () => {
-    //   const s = await window.tp.getState();
-    //   setState(s);
-    // };
-
-    // window.tp.onTick(onTick);
-    // window.tp.onSessionsUpdated(onSessionsUpdated);
 
     const local = setInterval(() => setNowTs(Date.now()), 1000);
 
     return () => {
-      mounted = false;
       clearInterval(local);
     };
   }, []);
 
-  useEffect(() => {
-    const unsubscribeTick = window.tp.onTick(() => {
-      setNowTs(Date.now());
-    });
-
-    const unsubscribeUpdated = window.tp.onSessionsUpdated(async () => {
-      //setState(await window.tp.getState());
-    });
-
-    return () => {
-      unsubscribeTick?.();
-      unsubscribeUpdated?.();
-    };
-  }, []);
-
   const elapsed = useMemo(() => {
-    if (state.running && state.startTs != null) {
-      return nowTs - state.startTs;
+    if (isRunning && startTs != null) {
+      return nowTs - startTs;
     }
     return 0;
-  }, [state.running, state.startTs, nowTs]);
+  }, [isRunning, startTs, nowTs]);
 
   const onStart = async () => {
-    // const proj = state.currentProject || state.projects[0] || '';
-    // if (!proj) return;
-    await window.tp.start("");
-    // const s = await window.tp.getState();
-    // setState(s);
+    if (!currentTask.current || !currentTask.current?.project_id || !taskName) {
+      console.error("Could not start undefined task:", JSON.stringify(currentTask.current));
+      return;
+    }
+
+    // TODO this is a weird place to do this but it works for now.
+    if (taskName.trim() != currentTask.current?.name?.trim()) {
+      console.info("Task names do not match. Syncing...")
+      setCurrentTask({
+        ...currentTask.current,
+        name: taskName.trim()
+      });
+    }
+
+    const started: number = await window.tp.start(currentTask.current);
+    
+    if (started >= 0) {
+      setCurrentTask({
+        ...currentTask.current,
+        id: started
+      });
+      setStartTs(nowTs);
+      setIsRunning(true);
+    }
   };
 
   const onStop = async () => {
-    await window.tp.stop();
-    // const s = await window.tp.getState();
-    // setState(s);
+    if (!currentTask.current || !currentTask.current?.project_id || !taskName) {
+      console.error("Could not start undefined task:", JSON.stringify(currentTask));
+      return;
+    }
+    
+    const stopped: boolean = await window.tp.stop(currentTask.current);
+
+    setIsRunning(stopped);
   };
 
-  const onTaskChange = async (v: string) => {
+  const onTaskChange = (v: string) => {
     toggleNewTask(!!!v);
-    setState(prev => ({ ...prev, currentTaskXXXXX: v }));
+    console.log("ON TASK CHANGE:", v);
   };
 
   const onProjectSelect = (id: number) => {
     // TODO: UX fix, you can't change the project ID of a task (yet)
-    if (currentTask?.id == undefined) {
-      setCurrentTask(prev => ({
-        ...prev,
-        name: prev?.name ?? "",
+    if (currentTask.current?.id == undefined) {
+      setCurrentTask({
+        ...currentTask.current,
+        name: currentTask.current?.name ?? "",
         project_id: id
-      }));
+      });
     }
   }
 
-  useEffect(() => {
-    console.log("current task:", JSON.stringify(currentTask));
-  }, [currentTask])
+  const allowStart = useMemo((): boolean => {
+    // is this a new task?
+    if (newTask && currentTask.current?.project_id && currentTask.current?.project_id > -1) {
+      return true;
+    }
+
+    // are we adding a session to an existing task?
+    if (currentTask.current?.id && tasks.length > 0) {
+      return true;
+    }
+
+    return false;
+  }, [newTask, currentTask.current?.project_id, currentTask.current?.id, tasks.length]);
+
+  // useEffect(() => {
+  //   console.log("current task:", JSON.stringify(currentTask));
+  // }, [currentTask])
 
   return (
     <Sidebar>
@@ -127,13 +133,13 @@ export default function TimerPage() {
           <div style={{ display: 'grid', gap: 8 }}>
             <div className="row" style={{ alignItems: 'center' }}>
               <select
-                value={state.currentTask?.name || ''}
+                value={currentTask.current?.name || ''}
                 onChange={(e) => onTaskChange(e.target.value)}
                 style={{ flex: 2, minWidth: 100 }}
               >
-                <option value="" disabled>Select a task</option>
+                <option value="">Select a task</option>
                 {tasks.length > 0 && tasks.map(t => (
-                  <option key={t.id} value={t.id}>{t?.project_id}: {t.name}</option>
+                  <option key={t.id} value={t.id}>({t?.project_id}) {t.name}</option>
                 ))}
               </select>
               <div style={{ padding: 2}}>- OR -</div>
@@ -160,20 +166,19 @@ export default function TimerPage() {
             >
               <option value="">Select a project</option>
               {projects.length > 0 && projects.map(p => (
-                <option key={p.id} value={p.id} selected={(p.id == currentTask?.project_id)}>{p.name}</option>
+                <option key={p.id} value={p.id} selected={(p.id == currentTask.current?.project_id)}>{p.name}</option>
               ))}
             </select>
           </section>}
 
         <div className="row">
-          <button onClick={onStart} disabled={!state.currentTask?.id && tasks.length === 0}>Start</button>
-          <button className="danger" onClick={onStop} disabled={!state.running}>Stop</button>
+          <button onClick={onStart} disabled={!allowStart}>Start</button>
+          <button className="danger" onClick={onStop} disabled={!isRunning}>Stop</button>
         </div>
 
         <div className="stats">
           <div><span className="label">Elapsed:</span> {msToHMS(elapsed)}</div>
-          <div><span className="label">Now:</span> {fmtWallClock(nowTs)}</div>
-          <div><span className="label">Status:</span> {state.running ? 'Running' : 'Idle'}</div>
+          <div><span className="label">Status:</span> {isRunning ? 'Running' : 'Idle'}</div>
         </div>
       </div>
     </Sidebar>

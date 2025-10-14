@@ -3,7 +3,6 @@ import { ServiceInterface } from "./service";
 import { BaseModel } from './types';
 
 export interface ProjectModel extends BaseModel {
-  id?: number;
   name: string;
   company_id?: number;
 }

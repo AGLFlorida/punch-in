@@ -1,19 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ProjectModel } from './main/services/project';
 import type { CompanyModel } from './main/services/company';
-import type { SessionRow } from './main/services/data';
 import type { TaskModel } from './main/services/task';
+import type { SessionModel } from './main/services/session';
 
 contextBridge.exposeInMainWorld('tp', {
   getState: () => ipcRenderer.invoke('tp:getState'),
-  start: (project: string) => ipcRenderer.invoke('tp:start', project),
-  stop: () => ipcRenderer.invoke('tp:stop'),
+  start: (task: TaskModel): Promise<number> => ipcRenderer.invoke('tp:start', task),
+  stop: (task: TaskModel): Promise<boolean> => ipcRenderer.invoke('tp:stop', task),
   setProjectList: (projects: ProjectModel[]) => ipcRenderer.invoke('tp:setProjectList', projects),
   getProjectList: (): Promise<ProjectModel[]> => ipcRenderer.invoke('tp:getProjectList'),
   removeProject: (id: number) => ipcRenderer.invoke('tp:removeProject', id), 
   setCompanyList: (companies: CompanyModel[]) => ipcRenderer.invoke('tp:setCompanyList', companies),
   getCompanyList: (): Promise<CompanyModel[]> => ipcRenderer.invoke('tp:getCompanyList'),
-  getSessions: () => ipcRenderer.invoke('tp:getSessions'),
+  getSessions: (): Promise<SessionModel[]> => ipcRenderer.invoke('tp:getSessions'),
   removeCompany: (id: number) => ipcRenderer.invoke('tp:removeCompany', id),
   getTasks: (): Promise<TaskModel[]> => ipcRenderer.invoke('tp:getTasks'),
 

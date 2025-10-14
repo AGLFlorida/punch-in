@@ -8,8 +8,8 @@ declare global {
   interface PunchInAPI {
     // state & control
     getState(): Promise<PunchInState>;
-    start(project: string): Promise<void>;
-    stop(): Promise<void>;
+    start(task: TaskModel): Promise<number>;
+    stop(task: TaskModel): Promise<boolean>;
     setProjectList(projects: ProjectModel[]): Promise<void>;
     getProjectList(): Promise<ProjectModel[]>;
     removeProject(id: number): Promise<boolean>;
@@ -19,7 +19,7 @@ declare global {
     getTasks(): Promise<TaskModel[]>;
 
     // reporting
-    getSessions(): Promise<SessionRow[]>;
+    getSessions(): Promise<SessionModel[]>;
 
     // events
     onTick(cb: () => void): () => void;

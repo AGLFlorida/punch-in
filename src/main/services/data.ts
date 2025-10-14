@@ -4,13 +4,6 @@ import fs from 'node:fs';
 import { app } from 'electron';
 //import { ProjectRow } from './project';
 
-export type SessionRow = {
-  id: number;
-  project: string;
-  start: number;   
-  end: number|null;
-};
-
 export type PunchinDatabase = Database.Database
 
 export class DB {

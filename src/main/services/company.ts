@@ -3,7 +3,6 @@ import type { PunchinDatabase } from "./data";
 import { BaseModel } from './types';
 
 export interface CompanyModel extends BaseModel {
-  id?: number;
   name: string;
 }
 

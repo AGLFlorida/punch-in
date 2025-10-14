@@ -2,15 +2,15 @@
 
 import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
-import { msToHMS, fmtWallClock } from '@/lib/time';
-import { SessionRow } from 'src/main/services/data';
+import { msToHMS } from '@/lib/time';
+import type { SessionModel } from '../../../main/services/session';
 
 export default function ReportsPage() {
-  const [rows, setRows] = useState<SessionRow[]>([]);
+  const [rows, setRows] = useState<SessionModel[]>([]);
 
   const load = async () => {
     //const data = await window.tp.getSessions();
-    const data: SessionRow[]  = [];
+    const data: SessionModel[]  = [];
     setRows(data);
   };
 
@@ -39,9 +39,9 @@ export default function ReportsPage() {
           <tbody>
             {rows.map(r => (
               <tr key={r.id}>
-                <td>{r.project}</td>
-                <td>{fmtWallClock(r.start)}</td>
-                <td>{r.end ? fmtWallClock(r.end) : '—'}</td>
+                <td>{r?.task.id}</td>
+                {/* <td>{fmtWallClock(r.start_time)}</td> */}
+                {/* <td>{r.end ? fmtWallClock(r.end) : '—'}</td> */}
                 <td>{msToHMS(0)}</td>
               </tr>
             ))}

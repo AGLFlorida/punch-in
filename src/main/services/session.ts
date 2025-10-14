@@ -1,27 +1,15 @@
 import { ServiceInterface } from "./service";
 import type { PunchinDatabase } from "./data";
+import { BaseModel } from "./types";
+import { TaskModel } from "./task";
 
-export interface SessionRow {
+export interface SessionModel extends BaseModel {
+  task: TaskModel
   start_time: Date;
-  end_time: Date;
+  end_time?: Date;
 }
 
-// export interface SessionRow {
-//   id: number;
-//   project: string;
-//   start: number; // epoch ms
-//   end: number | null;
-//   elapsedMs: number;
-// }
-
-
-
-export interface Session extends SessionRow {
-  id: number;
-  task_id: number;
-}
-
-export class SessionService implements ServiceInterface<Session> {
+export class SessionService implements ServiceInterface<SessionModel> {
     db: PunchinDatabase | null = null;
   
     constructor(db: PunchinDatabase) {
@@ -30,7 +18,7 @@ export class SessionService implements ServiceInterface<Session> {
       }
     }
   
-  getOne(_?: number): Session {
+  getOne(_?: number): SessionModel {
     const row = this.db?.prepare(`
       SELECT id, task_id, start_time, end_time 
       -- FROM v_session
@@ -38,28 +26,40 @@ export class SessionService implements ServiceInterface<Session> {
       WHERE end_time IS NULL
       ORDER BY id DESC LIMIT 1
     `).get();
-    return (row as Session) ?? null;
+    return (row as SessionModel) ?? null;
   }
 
-  set(data: Session[]) { return false; }
+  set(data: SessionModel[]) { return false; }
 
-  start(task: number) {
-    // this.ensureProject(project);
+  start(task_id: number): boolean {
     // close any orphan open session (defensive)
     if (this.getOpenSessions() > 0) {
       this.db?.prepare(`UPDATE session SET end_time = ? WHERE end_time IS NULL`).run(Date.now());
     }
-    //this.db?.prepare(`UPDATE session SET end_time = ? WHERE end_time IS NULL`).run(Date.now());
-    //const s:  = this.db?.prepare(`SELECT id FROM session WHERE task_id = ?`).get(project) as ProjectRow;
-    //this.db.prepare(`INSERT INTO session(project_id, start_time) VALUES(?, ?)`).run(p?.id, Date.now());
+
+    // TODO: this basically ignores the UI's start 'time'
+    const res = this.db?.prepare(`INSERT INTO session(task_id, start_time) values(?,?)`).run(task_id, Date.now()); 
+    
+    if (!res?.changes || res.changes < 1) {
+      return false;
+    }
+
+    return true;
   }
 
-  stop() {
-    //this.db?.prepare(`UPDATE session SET end_time = ? WHERE end_time IS NULL`).run(Date.now());
+  stop(): boolean {
+    // TODO: this is a hammer. it closes ALL open sessions.
+    const res = this.db?.prepare(`UPDATE session SET end_time = ? WHERE end_time IS NULL`).run(Date.now());
+    
+    if (!res?.changes || res.changes < 1) {
+      return false;
+    }
+
+    return true;
   }
 
-  get(): Session[] {
-    return this.db?.prepare(`SELECT id, task_id, start_time, end_time FROM session ORDER BY id DESC`).all() as Session[];
+  get(): SessionModel[] {
+    return this.db?.prepare(`SELECT id, task_id, start_time, end_time FROM session ORDER BY id DESC`).all() as SessionModel[];
   }
 
   private getOpenSessions(): number {
