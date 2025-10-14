@@ -12,6 +12,7 @@ export const companyHandler = (services: ServiceManager) => {
         throw new Error("Company service not initialized.")
       }
 
+      // TODO: don't need this...?
       const _c = companies//svc.toCompanyModel(companies);
 
       if (_c.length > 0) {

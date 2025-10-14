@@ -1,4 +1,5 @@
 import { CompanyModel } from "./main/services/company";
+import { TaskModel } from "./main/services/task";
 
 export {};
 
@@ -15,6 +16,7 @@ declare global {
     setCompanyList(companies: CompanyModel[]): Promise<void>;
     getCompanyList(): Promise<CompanyModel[]>;
     removeCompany(id: number): Promise<boolean>;
+    getTasks(): Promise<TaskModel[]>;
 
     // reporting
     getSessions(): Promise<SessionRow[]>;
@@ -24,12 +26,10 @@ declare global {
     onSessionsUpdated(cb: () => void): () => void;
   }
 
-  export interface PunchInState {
+  interface PunchInState {
     running: boolean;
-    currentProject: string;
+    currentTask: TaskModel;
     startTs: number | null; // epoch ms
-    projects: string[];
-    companies: string[];
   }
 
   interface Window {

@@ -1,6 +1,7 @@
-type PunchInState = {
+// TODO: this is gross but it needs to be synced with <root>/preload.d.ts/PunchInState
+import { TaskModel } from "../services/task";
+export interface PunchInState {
   running: boolean;
-  currentProject: string;
-  startTs: number | null;
-  projects: string[];
-};
+  currentTask: TaskModel;
+  startTs: number | null; // epoch ms
+}

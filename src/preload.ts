@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { ProjectModel } from './main/services/project';
 import type { CompanyModel } from './main/services/company';
 import type { SessionRow } from './main/services/data';
+import type { TaskModel } from './main/services/task';
 
 contextBridge.exposeInMainWorld('tp', {
   getState: () => ipcRenderer.invoke('tp:getState'),
@@ -14,6 +15,7 @@ contextBridge.exposeInMainWorld('tp', {
   getCompanyList: (): Promise<CompanyModel[]> => ipcRenderer.invoke('tp:getCompanyList'),
   getSessions: () => ipcRenderer.invoke('tp:getSessions'),
   removeCompany: (id: number) => ipcRenderer.invoke('tp:removeCompany', id),
+  getTasks: (): Promise<TaskModel[]> => ipcRenderer.invoke('tp:getTasks'),
 
   onTick: (cb: () => void) => {
     const fn = () => cb();
