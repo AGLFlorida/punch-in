@@ -6,6 +6,7 @@ import { projectHandler } from './project';
 import { companyHandler } from './company';
 import { sessionHandler } from './session';
 import { taskHandler } from './task';
+import { reportHandler } from './report';
 
 const services: ServiceManager = ServiceManager.getInstance();
 const sh = stateHandler(services);
@@ -13,6 +14,7 @@ const ph = projectHandler(services);
 const ch = companyHandler(services);
 const sessh = sessionHandler(services);
 const th = taskHandler(services);
+const r = reportHandler(services);
 
 // Register handlers
 
@@ -36,3 +38,6 @@ ipcMain.handle('tp:removeCompany', ch.delCompany);
 ipcMain.handle('tp:start', sessh.start);
 ipcMain.handle('tp:stop',  sessh.stop);
 ipcMain.handle('tp:getSessions', sessh.get);
+
+// report handlers
+ipcMain.handle('tp:getReport', r.get)

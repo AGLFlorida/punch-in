@@ -1,6 +1,6 @@
 {
   "name": "punch-in",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A tiny Electron app to punch in/out per project, with a Mac menu bar (tray) item showing the current project and elapsed time, plus a simple 2-screen UI (Timer & Reports).",
   "main": "dist/main/index.js",
   "scripts": {
@@ -10,11 +10,12 @@
     "build:ui": "next build src/renderer",
     "export:ui": "next export src/renderer",
     "static:ui": "npm run build:ui && npm run export:ui",
-    "dev": "ENV=development ELECTRON_ENABLE_LOGGING=1 npm start",
+    "dev": "ENV=development ELECTRON_ENABLE_LOGGING=1 npm start -s",
+    "dev:debug": "ENABLE_CONSOLE=1 npm run -s dev",
     "test": "jest --runInBand",
     "lint": "eslint .",
-    "package": "npm run build && electron-packager . PunchIn --platform=darwin --arch=arm64 --out=out --overwrite",
-    "copy:assets": "cp src/renderer/*.svg dist",
+    "package": "npm run build && electron-packager . PunchIn --platform=darwin --arch=arm64 --out=out --overwrite --icon=img/icon.icns",
+    "copy:assets": "cp src/renderer/*.svg dist && cp img/logo.png dist && cp img/icon.icns dist || true",
     "clean:dist": "rm -rf dist",
     "clean:next": "rm -rf src/renderer/.next",
     "clean:node": "rm -rf node_modules",

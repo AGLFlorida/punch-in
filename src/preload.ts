@@ -3,6 +3,7 @@ import type { ProjectModel } from './main/services/project';
 import type { CompanyModel } from './main/services/company';
 import type { TaskModel } from './main/services/task';
 import type { SessionModel } from './main/services/session';
+import { ReportModel } from './main/services/report';
 
 contextBridge.exposeInMainWorld('tp', {
   getState: () => ipcRenderer.invoke('tp:getState'),
@@ -16,6 +17,7 @@ contextBridge.exposeInMainWorld('tp', {
   getSessions: (): Promise<SessionModel[]> => ipcRenderer.invoke('tp:getSessions'),
   removeCompany: (id: number) => ipcRenderer.invoke('tp:removeCompany', id),
   getTasks: (): Promise<TaskModel[]> => ipcRenderer.invoke('tp:getTasks'),
+  getReport: (): Promise<ReportModel[]> => ipcRenderer.invoke('tp:getReport'), // TODO get by date range.
 
   onTick: (cb: () => void) => {
     const fn = () => cb();

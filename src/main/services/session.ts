@@ -19,7 +19,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
     }
   
   getOne(id?: number): SessionModel {
-    console.log(id);
+    console.log("ID", id);
     const row = this.db?.prepare(`
       SELECT id, task_id, start_time, end_time 
       -- FROM v_session

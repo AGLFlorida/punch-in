@@ -45,38 +45,18 @@ export default function TimerPage() {
         const p = await window.tp.getProjectList();
         setProjects(p);
         setTasks(t);
-
-        console.log("---", JSON.stringify(p))
+        
         p.forEach((p: ProjectModel) => {
           if (p.id && projectNames.current) projectNames.current[p.id] = p.name;
         })
        
       } catch (e) {
         console.info("Error loading tasks and projects:", e)
-      } finally {
-// set project names
-
-console.log("---", JSON.stringify(projects))
-       projects.forEach((p: ProjectModel) => {
-        console.log(p.id, projectNames.current);
-          if (p.id && projectNames.current) projectNames.current[p.id] = p.name;
-        })
-
-        console.log("load,")
       }
     };
     load();
 
     const local = setInterval(() => setNowTs(Date.now()), 1000);
-
-      
-
-      
-    
-console.log("projects", JSON.stringify(projectNames.current))
-  
-
-    
 
     return () => {
       clearInterval(local);
