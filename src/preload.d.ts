@@ -17,6 +17,7 @@ declare global {
     getCompanyList(): Promise<CompanyModel[]>;
     removeCompany(id: number): Promise<boolean>;
     getTasks(): Promise<TaskModel[]>;
+    getReport(): Promise<ReportModel[]>;
 
     // reporting
     getSessions(): Promise<SessionModel[]>;

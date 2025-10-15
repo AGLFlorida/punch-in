@@ -1,6 +1,7 @@
 import { CompanyService } from "./company";
 import { DB, type PunchinDatabase } from "./data";
 import { ProjectService } from "./project";
+import { ReportService } from "./report";
 import { SessionService } from "./session";
 import { TaskService } from "./task";
 
@@ -11,6 +12,7 @@ export class ServiceManager {
   private _session: SessionService | null = null;
   private _company: CompanyService | null = null;
   private _task: TaskService | null = null;
+  private _report: ReportService | null = null;
 
   private static instance: ServiceManager | null = null;
 
@@ -33,6 +35,10 @@ export class ServiceManager {
 
     if (this._task == null) {
       this._task = new TaskService(this.db as PunchinDatabase);
+    }
+
+    if (this._report == null) {
+      this._report = new ReportService(this.db as PunchinDatabase);
     }
   }
 
@@ -58,6 +64,10 @@ export class ServiceManager {
 
   task() {
     return this._task;
+  }
+
+  report() {
+    return this._report;
   }
 
   closeDB() {

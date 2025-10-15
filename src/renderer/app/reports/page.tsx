@@ -2,21 +2,37 @@
 
 import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
-import { msToHMS } from '@/lib/time';
-import type { SessionModel } from '../../../main/services/session';
+//import { msToHMS } from '@/lib/time';
+import type { ReportModel } from '../../../main/services/report';
+
+/*
+
+export interface ReportModel {
+  Comany: string
+  Project: string;
+  Task: string
+  TimeSpent: number;
+}
+
+*/
 
 export default function ReportsPage() {
-  const [rows, setRows] = useState<SessionModel[]>([]);
+  const [rows, setRows] = useState<ReportModel[]>([]);
 
   const load = async () => {
-    //const data = await window.tp.getSessions();
-    const data: SessionModel[]  = [];
-    setRows(data);
+    try {
+      const data = await window.tp.getReport();
+      setRows(data);
+      console.log(data);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   useEffect(() => {
     load();
-    window.tp.onSessionsUpdated(load);
+    //console.log("CALLED LOAD")
+    //window.tp.onSessionsUpdated(load);
   }, []);
 
   return (
@@ -30,19 +46,21 @@ export default function ReportsPage() {
         <table className="table">
           <thead>
             <tr>
+              <th>Company</th>
               <th>Project</th>
-              <th>Start</th>
-              <th>End</th>
-              <th>Elapsed</th>
+              <th>Task</th>
+              <th>Date</th>
+              <th>Time</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => (
-              <tr key={r.id}>
-                <td>{r?.task.id}</td>
-                {/* <td>{fmtWallClock(r.start_time)}</td> */}
-                {/* <td>{r.end ? fmtWallClock(r.end) : '—'}</td> */}
-                <td>{msToHMS(0)}</td>
+            {rows.map((r: ReportModel, idx: number) => (
+              <tr key={idx}>
+                <td>{r?.company_name}</td>
+                <td>{r?.project_name}</td>
+                <td>{r?.task_name}</td>
+                <td>{r?.day}</td>
+                <td>{r?.total_seconds}</td>
               </tr>
             ))}
             {rows.length === 0 && (
