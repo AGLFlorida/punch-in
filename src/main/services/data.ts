@@ -275,66 +275,67 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
       -- report view
       CREATE VIEW IF NOT EXISTS v_task_daily_totals_exact AS
       WITH
-      -- Normalize times; ignore open sessions (or COALESCE to CURRENT_TIMESTAMP if you want to include them)
+      -- completed sessions only; convert ms → sec (INTEGER)
       normalized AS (
         SELECT
           s.id,
           s.task_id,
-          DATETIME(s.start_time) AS start_at,
-          DATETIME(s.end_time)   AS end_at
+          CAST(s.start_time / 1000 AS INTEGER) AS start_s,
+          CAST(s.end_time   / 1000 AS INTEGER) AS end_s
         FROM "session" s
         WHERE s.end_time IS NOT NULL
       ),
 
-      -- For each session, generate one row per calendar day it touches
-      expanded AS (
+      -- one row per calendar day touched
+      expanded(day, id, task_id, start_s, end_s) AS (
         SELECT
-          n.id,
-          n.task_id,
-          DATE(n.start_at) AS day,
-          n.start_at,
-          n.end_at
-        FROM normalized n
-
+          DATE(start_s, 'unixepoch') AS day,
+          id, task_id, start_s, end_s
+        FROM normalized
         UNION ALL
-
         SELECT
-          e.id,
-          e.task_id,
-          DATE(DATETIME(e.day, '+1 day')) AS day,
-          e.start_at,
-          e.end_at
-        FROM expanded e
-        WHERE DATETIME(e.day, '+1 day') < DATE(e.end_at, '+1 day')  -- still before session's last day
+          DATE(DATETIME(day, '+1 day')) AS day,
+          id, task_id, start_s, end_s
+        FROM expanded
+        WHERE DATETIME(day, '+1 day') < DATE(end_s, 'unixepoch', '+1 day')
       ),
 
-      -- For each (session, day), compute the actual overlap in seconds with that day
+      -- clamp to that day's [00:00, 24:00) window, all in SECONDS (INTEGER)
       per_day AS (
         SELECT
-          e.id,
-          e.task_id,
-          e.day,
-          MAX(strftime('%s', MAX(e.start_at, DATETIME(e.day))))            AS seg_start,
-          MIN(strftime('%s', MIN(e.end_at,   DATETIME(e.day, '+1 day'))))  AS seg_end
-        FROM expanded e
-        GROUP BY e.id, e.task_id, e.day
+          id,
+          task_id,
+          day,
+          -- midnight of this day in seconds
+          CAST(STRFTIME('%s', day) AS INTEGER)              AS day_start_s,
+          CAST(STRFTIME('%s', DATETIME(day, '+1 day')) AS INTEGER) AS day_end_s,
+          start_s,
+          end_s
+        FROM expanded
+      ),
+      segments AS (
+        SELECT
+          id,
+          task_id,
+          day,
+          MAX(start_s, day_start_s) AS seg_start,
+          MIN(end_s,   day_end_s)   AS seg_end
+        FROM per_day
       )
       SELECT
         c.name AS company_name,
         p.name AS project_name,
         t.name AS task_name,
         t.id   AS task_id,
-        pd.day AS day,
-        SUM(MAX(pd.seg_end - pd.seg_start, 0))              AS total_seconds,
-        ROUND(SUM(MAX(pd.seg_end - pd.seg_start, 0)) / 3600.0, 2) AS total_hours
-      FROM per_day pd
-      JOIN task    t ON t.id = pd.task_id
+        s.day  AS day,
+        SUM(CASE WHEN (s.seg_end - s.seg_start) > 0 THEN (s.seg_end - s.seg_start) ELSE 0 END) AS total_seconds,
+        ROUND(SUM(CASE WHEN (s.seg_end - s.seg_start) > 0 THEN (s.seg_end - s.seg_start) ELSE 0 END) / 3600.0, 2) AS total_hours
+      FROM segments s
+      JOIN task    t ON t.id = s.task_id
       JOIN project p ON p.id = t.project_id
       JOIN company c ON c.id = p.company_id
-      WHERE (pd.seg_end - pd.seg_start) > 0
-      GROUP BY c.name, p.name, t.name, t.id, pd.day
-      ORDER BY c.name, p.name, t.name, pd.day;
-
+      GROUP BY c.name, p.name, t.name, t.id, s.day
+      ORDER BY c.name, p.name, t.name, s.day;
 
       CREATE INDEX IF NOT EXISTS idx_session_open ON session(end_time);
       CREATE INDEX IF NOT EXISTS idx_session_project ON session(task_id);

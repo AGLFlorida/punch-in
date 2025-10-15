@@ -23,7 +23,7 @@ export default function ReportsPage() {
     try {
       const data = await window.tp.getReport();
       setRows(data);
-      console.log(data);
+      //console.log(data);
     } catch (e) {
       console.error(e);
     }
@@ -50,7 +50,7 @@ export default function ReportsPage() {
               <th>Project</th>
               <th>Task</th>
               <th>Date</th>
-              <th>Time</th>
+              <th>Time (HH:MM:SS)</th>
             </tr>
           </thead>
           <tbody>
@@ -60,7 +60,7 @@ export default function ReportsPage() {
                 <td>{r?.project_name}</td>
                 <td>{r?.task_name}</td>
                 <td>{r?.day}</td>
-                <td>{r?.total_seconds}</td>
+                <td>00:00:{r?.total_seconds}</td>
               </tr>
             ))}
             {rows.length === 0 && (

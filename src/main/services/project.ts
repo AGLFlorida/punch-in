@@ -71,15 +71,10 @@ export class ProjectService implements ServiceInterface<ProjectModel> {
     const insert = this.db?.prepare(
       `INSERT OR IGNORE INTO project(name, company_id) VALUES (?, ?)`
     );
-
-    console.log("insert", insert);
     
     const filteredList: ProjectModel[] = projectList.filter((p: ProjectModel) => p.id == undefined);
-
-    console.log("save: ", filteredList);
-    return false;
     
-    /*
+    
     if (filteredList.length < 1) {
       console.info("[project::set] Nothing to update.")
       return false;
@@ -113,9 +108,7 @@ export class ProjectService implements ServiceInterface<ProjectModel> {
     });
 
     tx?.(toBeAdded); // TODO: need better guardrails here.
-        
     
     return true;
-    */
   }
 }
