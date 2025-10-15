@@ -8,15 +8,15 @@ export const sessionHandler = (services: ServiceManager) => {
 
   return {
     start:  (_e: IpcMainInvokeEvent, task: TaskModel): number => {
-      if (!!!task) {
+      if (!task) {
         throw new Error("Missing task.")
       }
 
-      if (!!!svc) {
+      if (!svc) {
         throw new Error("Session service not initialized.")
       }
 
-      if (!!!taskSvc) {
+      if (!taskSvc) {
         throw new Error("Task service not initialized.")
       }
 
@@ -24,14 +24,14 @@ export const sessionHandler = (services: ServiceManager) => {
       if (!task.id || task.id < 0) {
         const t: boolean = !!taskSvc?.set([task]);
         task_id = taskSvc?.getLastTaskId();
-        if (!!!t || !!!task_id) {
+        if (!t || !task_id) {
           throw new Error("Could not create task.")
         }
       } else {
         task_id = task.id;
       }
 
-      if (!!!svc.start(task_id)) {
+      if (!svc.start(task_id)) {
         throw new Error(`Could not start task: ${task_id}`)
       }
     
@@ -39,11 +39,11 @@ export const sessionHandler = (services: ServiceManager) => {
       return task_id;
     },
     stop: (_e: IpcMainInvokeEvent, task: TaskModel): boolean => {
-      if (!!!task || !task?.id) {
+      if (!task || !task?.id) {
         throw new Error("Missing task id.")
       }
 
-      if (!!!svc) {
+      if (!svc) {
         throw new Error("Session service not initialized.")
       }
 
