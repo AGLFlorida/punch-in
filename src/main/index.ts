@@ -7,7 +7,7 @@ import { ServiceManager } from './services/manager';
 import './handlers'; // registers ipcMain handlers (db, etc.)
 
 let isQuitting = false;
-let services = ServiceManager.getInstance(); // TODO: better DI
+const services = ServiceManager.getInstance(); // TODO: better DI
 
 registerAppScheme(); // before app ready
 

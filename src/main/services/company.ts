@@ -46,7 +46,7 @@ export class CompanyService implements ServiceInterface<CompanyModel> {
     }
 
     const namesOnly: string[] = filteredList.map((c: CompanyModel) => c.name);
-    let has_one: CompanyModel[] = [];
+    const has_one: CompanyModel[] = [];
     for(const i in namesOnly) {
       const gbn = this.getByName(namesOnly[i]);
       if (gbn) has_one.push(gbn);
