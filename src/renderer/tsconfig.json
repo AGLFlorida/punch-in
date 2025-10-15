@@ -12,9 +12,10 @@
     "resolveJsonModule": true
   },
   "include": [
+    "../../src/**/*.d.ts",
     "../../src/renderer/**/*.ts",
     "../../src/renderer/**/*.tsx",
-    "../../src/**/*.d.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "../../dist/renderer/types/**/*.ts"
   ]
 }

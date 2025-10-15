@@ -80,8 +80,8 @@ export class ProjectService implements ServiceInterface<ProjectModel> {
       return false;
     }
 
-    const namesOnly: string[] = filteredList.map((p: ProjectModel) => p.name);
-    let has_one: ProjectModel[] = [];
+    //const namesOnly: string[] = filteredList.map((p: ProjectModel) => p.name);
+    const has_one: ProjectModel[] = [];
     // for(const i in namesOnly) {
     //   const gbn = this.getByName(namesOnly[i]);
     //   if (gbn) has_one.push(gbn);
