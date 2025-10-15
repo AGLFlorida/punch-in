@@ -8,6 +8,10 @@ import { ProjectModel } from 'src/main/services/project';
 
 // TODO the running timer doesn't always refresh properly, making it look like we are skipping seconds.
 
+type ProjectNames = {
+  [key: number]: string;
+}
+
 export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [newTask, toggleNewTask] = useState<boolean>(tasks.length === 0);
@@ -17,24 +21,62 @@ export default function TimerPage() {
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [startTs, setStartTs] = useState<number | null>(null);
 
+  const projectNames = useRef<ProjectNames>({});
+
   const currentTask = useRef<TaskModel>(null);
   const setCurrentTask = (t: TaskModel) => {
     currentTask.current = t;
   }
 
-  // TODO: what about timezones?
+  // const getProjectName = (id: number): string => {
+  //   const proj: ProjectModel[] = projects.filter((p: ProjectModel) => p.id === id);
+  //   console.log("called get project name.")
+  //   return proj[0].name;
+  // }
+
+  // TODO: what about timezones? Do I need to change the DB datatype? Do I care?
 
   // Initial load + event hooks
   useEffect(() => {
     const load = async () => {
-      const t = await window.tp.getTasks();
-      const p = await window.tp.getProjectList();
-      setTasks(t);
-      setProjects(p);
+
+      try {
+        const t = await window.tp.getTasks();
+        const p = await window.tp.getProjectList();
+        setProjects(p);
+        setTasks(t);
+
+        console.log("---", JSON.stringify(p))
+        p.forEach((p: ProjectModel) => {
+          if (p.id && projectNames.current) projectNames.current[p.id] = p.name;
+        })
+       
+      } catch (e) {
+        console.info("Error loading tasks and projects:", e)
+      } finally {
+// set project names
+
+console.log("---", JSON.stringify(projects))
+       projects.forEach((p: ProjectModel) => {
+        console.log(p.id, projectNames.current);
+          if (p.id && projectNames.current) projectNames.current[p.id] = p.name;
+        })
+
+        console.log("load,")
+      }
     };
     load();
 
     const local = setInterval(() => setNowTs(Date.now()), 1000);
+
+      
+
+      
+    
+console.log("projects", JSON.stringify(projectNames.current))
+  
+
+    
 
     return () => {
       clearInterval(local);
@@ -49,13 +91,13 @@ export default function TimerPage() {
   }, [isRunning, startTs, nowTs]);
 
   const onStart = async () => {
-    if (!currentTask.current || !currentTask.current?.project_id || !taskName) {
+    if (!currentTask.current || !currentTask.current?.project_id || (!taskName && newTask)) {
       console.error("Could not start undefined task:", JSON.stringify(currentTask.current));
       return;
     }
 
     // TODO this is a weird place to do this but it works for now.
-    if (taskName.trim() != currentTask.current?.name?.trim()) {
+    if (taskName?.trim() && taskName.trim() != currentTask.current?.name?.trim()) {
       console.info("Task names do not match. Syncing...")
       setCurrentTask({
         ...currentTask.current,
@@ -64,7 +106,7 @@ export default function TimerPage() {
     }
 
     const started: number = await window.tp.start(currentTask.current);
-    
+
     if (started >= 0) {
       setCurrentTask({
         ...currentTask.current,
@@ -76,19 +118,32 @@ export default function TimerPage() {
   };
 
   const onStop = async () => {
-    if (!currentTask.current || !currentTask.current?.project_id || !taskName) {
-      console.error("Could not start undefined task:", JSON.stringify(currentTask));
+    setIsRunning(false);
+    if (!currentTask.current || !currentTask.current?.project_id || (!taskName && newTask)) {
+      console.error("Could not stop undefined task:", JSON.stringify(currentTask.current));
       return;
     }
     
     const stopped: boolean = await window.tp.stop(currentTask.current);
-
-    setIsRunning(stopped);
+    console.info(`Session ended: (${currentTask.current.id}) ${stopped}`);
+    //await window.tp.stop(currentTask.current);
   };
 
+  const getTaskById = (id: number): TaskModel => {
+    for(const i in tasks) {
+      if (id === tasks[i].id) return tasks[i];
+    }
+
+    return {} as TaskModel;
+  }
+
   const onTaskChange = (v: string) => {
+    const task_id = Number(v); // TODO there needs to be a cleaner way to do this.
+
+    const someTask = getTaskById(task_id);
+    setCurrentTask(someTask);
+
     toggleNewTask(!!!v);
-    console.log("ON TASK CHANGE:", v);
   };
 
   const onProjectSelect = (id: number) => {
@@ -120,6 +175,12 @@ export default function TimerPage() {
   //   console.log("current task:", JSON.stringify(currentTask));
   // }, [currentTask])
 
+  const isSelected = useMemo((): boolean => {
+    //t.id === currentTask.current?.id
+    //console.log(JSON.stringify(currentTask));
+    return false;
+  }, [currentTask.current]) // TODO not sure this is needed.
+
   return (
     <Sidebar>
       <div className="header">
@@ -133,25 +194,26 @@ export default function TimerPage() {
           <div style={{ display: 'grid', gap: 8 }}>
             <div className="row" style={{ alignItems: 'center' }}>
               <select
-                value={currentTask.current?.name || ''}
                 onChange={(e) => onTaskChange(e.target.value)}
                 style={{ flex: 2, minWidth: 100 }}
               >
                 <option value="">Select a task</option>
                 {tasks.length > 0 && tasks.map(t => (
-                  <option key={t.id} value={t.id}>({t?.project_id}) {t.name}</option>
+                  <option key={t.id} value={t.id} selected={isSelected}>({(t?.project_id) ? projectNames.current[t.project_id]: "No Project"}) {t.name}</option>
                 ))}
               </select>
-              <div style={{ padding: 2}}>- OR -</div>
-              { newTask && 
-                <input
-                  type="text"
-                  placeholder={"enter task name"}
-                  value={taskName}
-                  onChange={(e) => setTaskName(e.target.value)}
-                  style={{ flex: 2, minWidth: 100 }}
-                  disabled={!newTask}
-                />
+              { newTask &&
+                <> 
+                  <div style={{ padding: 2}}>- OR -</div>
+                  <input
+                    type="text"
+                    placeholder={"enter task name"}
+                    value={taskName}
+                    onChange={(e) => setTaskName(e.target.value)}
+                    style={{ flex: 2, minWidth: 100 }}
+                    disabled={!newTask}
+                  />
+                </>
               }
             </div>
           </div>
