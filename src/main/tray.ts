@@ -42,7 +42,8 @@ export function setupTray() {
 export function updateTray() {
   if (!tray) return;
 
-  const open = services.session()?.getOne(); //db.getOpenSession();
+  //const open = services.session()?.getOne(); TODO this runs constantly (on tick), need to fix that so we aren't slamming the DB
+  const open = false;
   if (!open) {
     tray.setTitle('Idle');
     tray.setToolTip('Time Punch — Idle');
