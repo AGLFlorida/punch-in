@@ -1,8 +1,8 @@
 import { Tray, Menu, nativeImage, app } from 'electron';
 import path from 'node:path';
 
-import { ServiceManager } from './services/manager';
-const services = ServiceManager.getInstance();
+//import { ServiceManager } from './services/manager';
+//const services = ServiceManager.getInstance();
 
 let tray: Tray | null = null;
 let timer: NodeJS.Timeout | null = null;
@@ -36,7 +36,7 @@ export function setupTray() {
   trayIcon = icon;
   tray = new Tray(trayIcon);
   // Ensure the tray image is set explicitly (some platforms may default to Electron icon)
-  try { tray.setImage(trayIcon); } catch (e) { /* ignore if platform doesn't support setImage */ }
+  try { tray.setImage(trayIcon); } catch { /* ignore if platform doesn't support setImage */ }
 
   tray.setToolTip('Time Punch');
   tray.setContextMenu(
@@ -66,7 +66,7 @@ export function updateTray() {
     // image (for example a full-size PNG or .icns entry) that makes the menu
     // bar icon huge.
     if (trayIcon) {
-      try { tray.setImage(trayIcon); } catch (e) { }
+      try { tray.setImage(trayIcon); } catch { /* IGNORE */ }
     }
     return;
   }

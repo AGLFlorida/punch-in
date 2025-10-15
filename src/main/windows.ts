@@ -24,7 +24,7 @@ export async function createMainWindow() {
   
   // On macOS set Dock icon explicitly (works when packaged)
   if (process.platform === 'darwin' && !icon.isEmpty() && app.dock) {
-    try { app.dock.setIcon(icon); } catch (e) { /* ignore in unsupported runtimes */ }
+    try { app.dock.setIcon(icon); } catch { /* ignore in unsupported runtimes */ }
   }
 
   if (process.env.ENABLE_CONSOLE === "1") {
