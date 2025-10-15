@@ -1,13 +1,14 @@
 name: CI (development)
 
 on:
-  pull_request:
+  push:
     branches: [ main ]
 
 jobs:
   build:
     name: Lint, Test, Build
     runs-on: ubuntu-latest
+    environment: development
 
     steps:
       - name: Checkout
