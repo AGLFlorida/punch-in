@@ -54,6 +54,8 @@ export const sessionHandler = (services: ServiceManager) => {
 
       const now = Date.now();
 
+      console.log(rows, now, "TO BE IMPLEMENTED");
+
       return [];
       // return rows.map(r => ({
       //   ...r,

@@ -8,13 +8,13 @@ const services = ServiceManager.getInstance();
 let tray: Tray | null = null;
 let timer: NodeJS.Timeout | null = null;
 
-function format(ms: number) {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const h = String(Math.floor(s / 3600)).padStart(2, '0');
-  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-  const sec = String(s % 60).padStart(2, '0');
-  return `${h}:${m}:${sec}`;
-}
+// function format(ms: number) {
+//   const s = Math.max(0, Math.floor(ms / 1000));
+//   const h = String(Math.floor(s / 3600)).padStart(2, '0');
+//   const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+//   const sec = String(s % 60).padStart(2, '0');
+//   return `${h}:${m}:${sec}`;
+// }
 
 export function setupTray() {
   if (tray) return tray;
@@ -48,7 +48,7 @@ export function updateTray() {
     tray.setToolTip('Time Punch — Idle');
     return;
   }
-  const elapsed = Date.now() //- open.start;
+  //const elapsed = Date.now() //- open.start;
   const title = "foo" //`${format(elapsed)} — ${open.project}`;
   tray.setTitle(title);
   tray.setToolTip(`Time Punch — ${title}`);

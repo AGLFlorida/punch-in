@@ -6,7 +6,7 @@ import { setupTray } from './tray';
 import { ServiceManager } from './services/manager';
 import './handlers'; // registers ipcMain handlers (db, etc.)
 
-let isQuitting = false;
+//let isQuitting = false;
 const services = ServiceManager.getInstance(); // TODO: better DI
 
 registerAppScheme(); // before app ready
@@ -31,7 +31,7 @@ app.on('activate', async () => {
 
 // Shutdown routines
 app.on('before-quit', () => {
-  isQuitting = true;
+  //isQuitting = true;
   //if (state.running) stopTimer();
   services.closeDB();
 });

@@ -71,6 +71,8 @@ export class ProjectService implements ServiceInterface<ProjectModel> {
     const insert = this.db?.prepare(
       `INSERT OR IGNORE INTO project(name, company_id) VALUES (?, ?)`
     );
+
+    console.log(insert);
     
     const filteredList: ProjectModel[] = projectList.filter((p: ProjectModel) => p.id == undefined);
 

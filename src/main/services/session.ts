@@ -18,7 +18,8 @@ export class SessionService implements ServiceInterface<SessionModel> {
       }
     }
   
-  getOne(_?: number): SessionModel {
+  getOne(id?: number): SessionModel {
+    console.log(id);
     const row = this.db?.prepare(`
       SELECT id, task_id, start_time, end_time 
       -- FROM v_session
@@ -29,7 +30,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
     return (row as SessionModel) ?? null;
   }
 
-  set(data: SessionModel[]) { return false; }
+  set(data: SessionModel[]) { console.log("TO BE IMPLEMENTED,", data); return false; }
 
   start(task_id: number): boolean {
     // close any orphan open session (defensive)
