@@ -1,19 +1,18 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
     "module": "commonjs",
-    "strict": true,
+    "moduleResolution": "Node",
     "outDir": "dist",
     "rootDir": "src",
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "types": ["node", "jest"]
   },
-  "include": ["src"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": [
     "node_modules",
     "dist",
-    "**/*.test.js",
-    "**/*.test.ts",
-    "src/renderer/renderer.ts"
+    ".next",
+    "src/renderer/**"
   ]
 }

@@ -1,0 +1,102 @@
+This repository is a small Electron + Next.js app (Mac menu bar) for tracking time by project.
+
+Key facts for an AI code assistant working in this repo
+- Big picture:
+  - The app is an Electron shell with a Next.js renderer located in `src/renderer` and a TypeScript main process in `src/main`.
+  - Runtime flow: main process (compiled to `dist/main`) boots Electron, registers a custom `app://` scheme (`src/main/protocol.ts`), creates the main window (`src/main/windows.ts`) and the tray (`src/main/tray.ts`).
+  - The renderer is built with Next.js; production assets are served from `dist/renderer` via the `app://` handler.
+
+- IPC / integration patterns (most important):
+  - The preload script exposes a single global API at `window.tp` (`src/preload.ts`). All renderer ↔ main communication goes through this API and IPC channels prefixed with `tp:`.
+  - IPC handlers live in `src/main/handlers` and are registered centrally in `src/main/handlers/index.ts` using `ipcMain.handle('tp:...', ...)`.
+  - Service logic is implemented behind a singleton `ServiceManager` in `src/main/services/manager.ts` which constructs service objects (`project`, `company`, `task`, `session`) that wrap the DB layer.
+
+- Data layer specifics:
+  - A local SQLite DB (better-sqlite3) is created in the Electron `userData` directory by `src/main/services/data.ts` (class `DB`). The schema is created programmatically on startup.
+  - The schema uses soft-delete via an `is_active` flag + `deleted_at` timestamps and DB triggers to keep `updated_at` in sync. Expect constraints and triggers in `createScema` in `data.ts`.
+  - Native module note: `better-sqlite3` is rebuilt with `electron-rebuild` — `npm run rebuild:sqlite` (also run by `postinstall`, `prestart`, `prepackage`).
+
+- Conventions & patterns to follow when editing or adding features:
+  - IPC naming: use `tp:` prefix for channels (e.g. `tp:getProjectList`). Register handlers in `src/main/handlers/index.ts` and expose them in `src/preload.ts` under `window.tp` with matching names.
+  - Services: obtain services via `ServiceManager.getInstance()`; prefer adding logic to a service (`src/main/services/*.ts`) rather than directly in handlers.
+  - Models: types are declared with `*Model` suffix (e.g. `ProjectModel`, `TaskModel`) inside `src/main/services/*` — follow those shapes for IPC payloads.
+  - UI → main flow: renderer calls `window.tp` (preload) → IPC channel → handler → service → `better-sqlite3` DB.
+
+- Build / dev / test workflows (concrete commands)
+  - Dev renderer only: npm run dev:ui  (runs Next dev for `src/renderer`)
+  - Full dev (build + Electron): npm run dev  (exports ENV=development and runs the start path)
+  - Build for production: npm run build (cleans, builds renderer, runs `tsc`, copies svg assets)
+  - Start packaged app locally after build: npm start  (calls `electron .` and expects `dist/main/index.js`)
+  - Rebuild native sqlite binary (needed when switching node/electron or architecture): npm run rebuild:sqlite
+  - Tests: npm test (Jest, renderer tests use jsdom; see `src/renderer/lib/time.test.ts`)
+  - Lint: npm run lint
+
+- Small but important gotchas the assistant should surface in PRs / edits
+  - `dist` must contain the renderer build for the `app://` protocol to serve static files. The `copy:assets` script copies SVGs from `src/renderer` into `dist` after build.
+  - Native module rebuild is required for `better-sqlite3`. CI/packaging must include `electron-rebuild` or run `npm run rebuild:sqlite`.
+  - The DB initializer function is named `createScema` (note spelling) — search that exact name if tracing schema code.
+
+- Quick how-to examples (minimal, concrete)
+  - Add a new IPC handler: create `src/main/handlers/foo.ts` that returns a factory (services) => ({ myAction: (e, arg) => { ... } }); then import and wire it in `src/main/handlers/index.ts` with `ipcMain.handle('tp:myAction', fooHandler(services).myAction)` and expose a matching method in `src/preload.ts`.
+  - Read/update DB: add logic to an existing service in `src/main/services/*` and call it from handlers; avoid putting SQL directly in handlers.
+
+ - Renderer tests (Jest) — minimal templates
+   - The renderer uses Jest with the `jest-environment-jsdom` environment (see `package.json`). Keep renderer tests under `src/renderer` (for example `src/renderer/__tests__`). Here are two minimal templates you can copy.
+
+   - Unit test (pure helper)
+
+```ts
+// src/renderer/__tests__/time.helper.test.ts
+import { formatMs } from '../lib/time';
+
+describe('formatMs helper', () => {
+  it('formats milliseconds to H:MM:SS', () => {
+    // example: 1 hour, 1 minute, 1 second
+    expect(formatMs(3661000)).toBe('1:01:01');
+  });
+});
+```
+
+   - Minimal component smoke test (no testing-library required)
+
+```tsx
+// src/renderer/__tests__/Timer.page.test.tsx
+import React from 'react';
+import { act } from 'react-dom/test-utils';
+import ReactDOM from 'react-dom/client';
+import TimerPage from '../app/timer/page';
+
+describe('Timer page (smoke)', () => {
+  let container: HTMLElement | null = null;
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+  afterEach(() => {
+    if (container) document.body.removeChild(container);
+    container = null;
+  });
+
+  it('renders without crashing', () => {
+    act(() => {
+      const root = ReactDOM.createRoot(container!);
+      root.render(<TimerPage />);
+      root.unmount();
+    });
+  });
+});
+```
+
+   - Notes:
+     - Tests run with `npm test` (Jest). Renderer tests execute in jsdom, so DOM APIs like `document` are available.
+     - Prefer testing small units (pure functions) or smoke-rendering pages/components with `react-dom/test-utils` unless you add `@testing-library/react` to the project.
+
+- Files to reference when making changes
+  - Main process entry and wiring: `src/main/index.ts`
+  - IPC handlers: `src/main/handlers/*.ts` and `src/main/handlers/index.ts`
+  - Services and DB: `src/main/services/*.ts` (`manager.ts`, `data.ts`, `project.ts`, `company.ts`, `session.ts`, `task.ts`)
+  - Preload / renderer bridge: `src/preload.ts`
+  - Renderer (Next) entry: `src/renderer/app/page.tsx` and `src/renderer/*` pages/components
+  - Build scripts and workflows: `package.json`
+
+If anything here seems unclear or you'd like the AI instructions to include more examples (for example: test patterns, a new IPC addition template, or DB migration notes), tell me which section to expand and I'll iterate.
