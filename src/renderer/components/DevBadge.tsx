@@ -3,6 +3,7 @@
 import React from 'react';
 
 export default function DevBadge() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const active = typeof window !== 'undefined' && !!(window as any).__TP_STUB_ACTIVE;
   if (!active) return null;
 

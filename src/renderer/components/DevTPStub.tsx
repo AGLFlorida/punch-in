@@ -22,6 +22,8 @@ export default function DevTPStub() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((window as any).tp) return; // don't override real API
 
     function now(): Date { 
@@ -34,7 +36,7 @@ export default function DevTPStub() {
       getState: async () => ({ running: false }),
 
       // projects / companies
-      setProjectList: async (list: any[]) => {
+      setProjectList: async (list: ProjectModel[]) => {
         projects.length = 0;
         list.forEach(p => {
           if (!p.id) p.id = ++nextId;
@@ -45,7 +47,7 @@ export default function DevTPStub() {
       getProjectList: async () => projects.slice(),
       removeProject: async (id: number) => { const i = projects.findIndex(p => p.id === id); if (i>=0) projects.splice(i,1); return true },
 
-      setCompanyList: async (list: any[]) => {
+      setCompanyList: async (list: CompanyModel[]) => {
         companies.length = 0;
         list.forEach(c => {
           if (!c.id) c.id = ++nextId;
@@ -75,8 +77,9 @@ export default function DevTPStub() {
         return task.id;
       },
 
-      stop: async (_task: any) => {
+      stop: async (_task: TaskModel) => {
         // close latest open session
+        console.log(`Closing mock task: ${JSON.stringify(_task)}`)
         const open = sessions.find(s => s.end_time == null);
         if (open) open.end_time = now();
         sessionsUpdated.current.forEach(cb => cb());
@@ -99,9 +102,14 @@ export default function DevTPStub() {
       }
     };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).tp = stub;
+
   // Mark that the stub is active so UI can show a visual badge in dev.
-  try { (window as any).__TP_STUB_ACTIVE = true; } catch (e) { }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  try { (window as any).__TP_STUB_ACTIVE = true; } catch (e) {
+    console.error('Error initializing UI stub:', e)
+  }
 
     // start a small tick that calls registered onTick callbacks
     const t = setInterval(() => {
