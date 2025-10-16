@@ -38,7 +38,7 @@ export function setupTray() {
   // Ensure the tray image is set explicitly (some platforms may default to Electron icon)
   try { tray.setImage(trayIcon); } catch { /* ignore if platform doesn't support setImage */ }
 
-  tray.setToolTip('Time Punch');
+  tray.setToolTip('Punch In');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Open', click: () => app.focus() },
@@ -61,7 +61,7 @@ export function updateTray() {
   const open = false;
   if (!open) {
     tray.setTitle('Idle');
-    tray.setToolTip('Time Punch — Idle');
+    tray.setToolTip('Punch In — Idle');
     // Always use the pre-resized tray icon so we don't accidentally set a large
     // image (for example a full-size PNG or .icns entry) that makes the menu
     // bar icon huge.
@@ -73,7 +73,7 @@ export function updateTray() {
   //const elapsed = Date.now() //- open.start;
   const title = "foo" //`${format(elapsed)} — ${open.project}`;
   tray.setTitle(title);
-  tray.setToolTip(`Time Punch — ${title}`);
+  tray.setToolTip(`Punch In — ${title}`);
 }
 
 export function cleanupTray() {

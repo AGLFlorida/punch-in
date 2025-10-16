@@ -15,7 +15,7 @@ export default function Sidebar({ children }: SidebarProps) {
       <div className="app">
         <aside className="sidebar">
           <div className="sidebarHeader">
-            <span className="hideWhenCollapsed">Time Punch</span>
+            <span className="hideWhenCollapsed">Punch In</span>
             <button className="toggle" onClick={() => setCollapsed(!collapsed)}>
               {collapsed ? '>' : '<'}
             </button>

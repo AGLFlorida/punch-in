@@ -21,7 +21,7 @@ export default function ReportsPage() {
 
   const load = async () => {
     try {
-      const data = await window.tp.getReport();
+      const data = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getReport) ? await (window as any).tp.getReport() : [];
       setRows(data);
       //console.log(data);
     } catch (e) {

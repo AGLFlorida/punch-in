@@ -1,7 +1,15 @@
 import '@/style.css';
 import React from 'react';
+import DevTPStub from '../components/DevTPStub';
+import DevBadge from '../components/DevBadge';
 
-export const metadata = { title: 'Time Punch' };
+export const metadata = { 
+  title: 'Punch In',
+  icon: [
+    { url: '/favicon.ico', sizes: 'any' },   
+    { url: '/favicon.png', type: 'image/png' },
+  ]
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,9 +17,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta
           httpEquiv="Content-Security-Policy"
-          content="
-            default-src 'self';
-            script-src 'self' 'unsafe-inline';
+          content={
+            `default-src 'self';
+            script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : ''};
             style-src 'self' 'unsafe-inline';
             img-src 'self' data: blob:;
             font-src 'self' data:;
@@ -19,12 +27,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             frame-src 'none';
             object-src 'none';
             base-uri 'self';
-            form-action 'self';
-          "
+            form-action 'self';`
+          }
         />
       </head>
       <body>
         {children}
+        {(process.env.DEV_UI_STUB === "1") &&
+          <>
+            <DevTPStub />
+            <DevBadge />
+          </> 
+        }
       </body>
     </html>
   );
