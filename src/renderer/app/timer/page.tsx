@@ -19,12 +19,13 @@ export default function TimerPage() {
   const [taskName, setTaskName] = useState<string>('');
   const [projects, setProjects] = useState<ProjectModel[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
-  const [nowTs, setNowTs] = useState<number>(Date.now());
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [startTs, setStartTs] = useState<number | null>(null);
-
+  const elapsedInterval = useRef<NodeJS.Timeout | null>(null);
+  const [elapsedTs, setElapsedTs] = useState<number>(0);
+  const [wallClock, setWallClock] = useState<string>('');
+  
   const projectNames = useRef<ProjectNames>({});
-
   const currentTask = useRef<TaskModel>(null);
   const setCurrentTask = (t: TaskModel) => {
     currentTask.current = t;
@@ -64,19 +65,57 @@ export default function TimerPage() {
     };
     load();
 
-    const local = setInterval(() => setNowTs(Date.now()), 1000);
+    // Initialize and update wall clock
+    const updateWallClock = () => {
+      const now = new Date();
+      // Show date and time but omit seconds
+      const formatted = fmtWallClock(now.getTime()).replace(/:\d\d$/, '');
+      setWallClock(formatted);
+    };
+
+    // Initial update
+    updateWallClock();
+
+    // Update wall clock every minute
+    const wallClockInterval = setInterval(updateWallClock, 60000);
 
     return () => {
-      clearInterval(local);
+      clearInterval(wallClockInterval);
     };
   }, []);
 
-  const elapsed = useMemo(() => {
-    if (isRunning && startTs != null) {
-      return nowTs - startTs;
+  // Separate effect for elapsed time when running
+  useEffect(() => {
+    if (isRunning && startTs !== null) {
+      // Clean up any existing interval
+      if (elapsedInterval.current) {
+        clearInterval(elapsedInterval.current);
+      }
+
+      // Update elapsed time every second
+      elapsedInterval.current = setInterval(() => {
+        setElapsedTs(Date.now() - startTs);
+      }, 1000);
+
+      // Initial update
+      setElapsedTs(Date.now() - startTs);
+    } else {
+      if (elapsedInterval.current) {
+        clearInterval(elapsedInterval.current);
+        elapsedInterval.current = null;
+      }
+      if (!isRunning) {
+        setElapsedTs(0);
+      }
     }
-    return 0;
-  }, [isRunning, startTs, nowTs]);
+
+    return () => {
+      if (elapsedInterval.current) {
+        clearInterval(elapsedInterval.current);
+        elapsedInterval.current = null;
+      }
+    };
+  }, [isRunning, startTs]);
 
   const onStart = async () => {
     if (!currentTask.current || !currentTask.current?.project_id || (!taskName && newTask)) {
@@ -101,7 +140,7 @@ export default function TimerPage() {
         ...currentTask.current,
         id: started
       });
-      setStartTs(nowTs);
+      setStartTs(Date.now());
       setIsRunning(true);
     }
   };
@@ -182,7 +221,7 @@ export default function TimerPage() {
     <Sidebar>
       <div className="header">
         <h1 className="title">Timer</h1>
-        <div>{mounted ? fmtWallClock(nowTs) : null}</div>
+        <div>{mounted ? wallClock : null}</div>
       </div>
 
       <div className="content">
@@ -238,7 +277,7 @@ export default function TimerPage() {
         </div>
 
         <div className="stats">
-          <div><span className="label">Elapsed:</span> {msToHMS(elapsed)}</div>
+          <div><span className="label">Elapsed:</span> {msToHMS(elapsedTs)}</div>
           <div><span className="label">Status:</span> {isRunning ? 'Running' : 'Idle'}</div>
         </div>
       </div>
