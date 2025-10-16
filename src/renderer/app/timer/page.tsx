@@ -44,7 +44,9 @@ export default function TimerPage() {
 
       try {
         // Guard against missing preload (window.tp) when running renderer standalone
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const t = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getTasks) ? await (window as any).tp.getTasks() : [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const p = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
   setProjects(p);
   setTasks(t);
@@ -91,6 +93,7 @@ export default function TimerPage() {
       });
     }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const started: number = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.start) ? await (window as any).tp.start(currentTask.current) : -1;
 
     if (started >= 0) {
@@ -110,9 +113,14 @@ export default function TimerPage() {
       return;
     }
     
-    const stopped: boolean = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.stop) ? await (window as any).tp.stop(currentTask.current) : false;
+     
+    //const stopped: boolean = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.stop) ? await (window as any).tp.stop(currentTask.current) : false;
     //console.info(`Session ended: (${currentTask.current.id}) ${stopped}`);
-    //await window.tp.stop(currentTask.current);
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.stop) {
+      await window.tp.stop(currentTask.current);
+    }
   };
 
   const getTaskById = (id: number): TaskModel => {

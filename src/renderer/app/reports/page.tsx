@@ -21,6 +21,7 @@ export default function ReportsPage() {
 
   const load = async () => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getReport) ? await (window as any).tp.getReport() : [];
       setRows(data);
       //console.log(data);
