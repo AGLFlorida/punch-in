@@ -197,7 +197,7 @@ export default function TimerPage() {
               >
                 <option value="">Select a task</option>
                 {tasks.length > 0 && tasks.map((t, idx) => (
-                  <option key={t.id !== undefined ? `${t.id}-${t.name}` : `task-${idx}`} value={t.id}>{(t?.project_id ? projectNames.current[t.project_id] : "No Project") + ") " + t.name}</option>
+                  <option key={t.id !== undefined ? `${t.id}-${t.name}` : `task-${idx}`} value={t.id}>({(t?.project_id ? projectNames.current[t.project_id] : "No Project") + ") " + t.name}</option>
                 ))}
               </select>
               { newTask &&
