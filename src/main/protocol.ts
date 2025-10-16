@@ -18,7 +18,17 @@ export async function attachStaticHandler() {
   protocol.handle('app', (request) => {
     let rel = new URL(request.url).pathname; 
     rel = decodeURIComponent(rel).replace(/^\/+/, '');
-    if (rel === '' || rel.endsWith('/')) rel += 'index.html';
+    if (rel === '' || rel.endsWith('/')) {
+      rel += 'index.html';
+    } else {
+      const looksLikeAsset = /\.[a-z0-9]+$/i.test(rel) || rel.startsWith('_next/') || rel.startsWith('assets/') || rel.startsWith('static/');
+      const requested = path.join(root, rel);
+
+      if (!looksLikeAsset && !fs.existsSync(requested)) {
+        // treat as client route -> index.html
+        rel = 'index.html';
+      }
+    }
 
     let filePath = path.join(root, rel);
     // if a directory sneaks through, serve its index.html

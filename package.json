@@ -12,7 +12,7 @@
     "dev:ui": "DEV_UI_STUB=1 next dev src/renderer",
     "test": "jest --runInBand",
     "lint": "eslint .",
-    "package": "npm run build && electron-packager . PunchIn --platform=darwin --arch=arm64 --out=out --icon=img/icon.icns --asar --extra-resource=dist/renderer",
+    "package": "ENV=production npm run build && electron-packager . PunchIn --platform=darwin --arch=arm64 --out=out --icon=img/icon.icns --asar --overwrite --extra-resource=dist/renderer",
     "copy:assets": "cp src/renderer/*.svg dist && cp img/logo.png dist && cp img/icon.icns dist || true",
     "clean:dist": "rm -rf dist",
     "clean:next": "rm -rf src/renderer/.next",
