@@ -16,7 +16,7 @@ export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | ''>('');
   const [newTask, toggleNewTask] = useState<boolean>(tasks.length === 0);
-  const [taskName, setTaskName] = useState<string>();
+  const [taskName, setTaskName] = useState<string>('');
   const [projects, setProjects] = useState<ProjectModel[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
   const [nowTs, setNowTs] = useState<number>(Date.now());
@@ -198,7 +198,7 @@ export default function TimerPage() {
                   <input
                     type="text"
                     placeholder={"enter task name"}
-                    value={taskName}
+                    value={taskName ?? ''}
                     onChange={(e) => setTaskName(e.target.value)}
                     style={{ flex: 2, minWidth: 100 }}
                     disabled={!newTask}
