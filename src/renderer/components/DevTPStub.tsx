@@ -5,6 +5,9 @@ import { CompanyModel } from 'src/main/services/company';
 import { ProjectModel } from 'src/main/services/project';
 import { TaskModel } from 'src/main/services/task';
 import { SessionModel } from 'src/main/services/session';
+import { ReportModel } from 'src/main/services/report';
+
+// TODO this could be tied more closely to the actual functionality but this bridges us for now.
 
 // Persistent demo data for dev:ui stub
 let nextId = 1;
@@ -44,7 +47,7 @@ export default function DevTPStub() {
         });
         return true;
       },
-      getProjectList: async () => projects.slice(),
+      getProjectList: async (): Promise<ProjectModel[]> => projects.slice(),
       removeProject: async (id: number) => { const i = projects.findIndex(p => p.id === id); if (i>=0) projects.splice(i,1); return true },
 
       setCompanyList: async (list: CompanyModel[]) => {
@@ -55,12 +58,12 @@ export default function DevTPStub() {
         });
         return true;
       },
-      getCompanyList: async () => companies.slice(),
+      getCompanyList: async (): Promise<CompanyModel[]> => companies.slice(),
       removeCompany: async (id: number) => { const i = companies.findIndex(c => c.id===id); if (i>=0) companies.splice(i,1); return true },
 
       // tasks & sessions
-      getTasks: async () => tasks.slice(),
-      getSessions: async () => sessions.slice(),
+      getTasks: async (): Promise<TaskModel[]> => tasks.slice(),
+      getSessions: async (): Promise<SessionModel[]> => sessions.slice(),
 
       // start returns a task id (matching main process contract when creating a task)
       start: async (task: TaskModel) => {
@@ -87,8 +90,42 @@ export default function DevTPStub() {
       },
 
       // simple report
-      getReport: async () => {
-        return sessions.map(s => ({ id: s.id, task: tasks.find(t=>t.id===s.task.id)?.name ?? 'task', start: s.start_time, end: s.end_time }));
+      getReport: async (): Promise<ReportModel[]> => {
+        if (sessions.length < 1) return [];
+
+        // Group sessions by company+project+task+day
+        const aggregated: { [key: string]: ReportModel } = {};
+        
+        sessions.forEach(s => {
+          const project = projects.find(p => p.id === s.task?.project_id);
+          const company = companies.find(c => c.id === project?.company_id);
+          const day = s.start_time?.toISOString().slice(0, 10) ?? '';
+          const key = [
+            company?.name ?? 'Unknown Company',
+            project?.name ?? 'Unknown Project',
+            s.task?.name ?? 'Unknown Task',
+            day
+          ].join('|');
+          
+          if (!aggregated[key]) {
+            aggregated[key] = {
+              company_name: company?.name ?? 'Unknown Company',
+              project_name: project?.name ?? 'Unknown Project',
+              task_name: s.task?.name ?? 'Unknown Task',
+              day: day,
+              total_seconds: 0
+            };
+          }
+
+          // Add this session's duration to the aggregate
+          if (s.end_time && s.start_time) {
+            aggregated[key].total_seconds += Math.floor(
+              (s.end_time.getTime() - s.start_time.getTime()) / 1000
+            );
+          }
+        });
+
+        return Object.values(aggregated);
       },
 
       // events
