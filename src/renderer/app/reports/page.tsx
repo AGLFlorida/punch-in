@@ -2,19 +2,8 @@
 
 import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
-//import { msToHMS } from '@/lib/time';
+import { msToHMS } from '@/lib/time';
 import type { ReportModel } from '../../../main/services/report';
-
-/*
-
-export interface ReportModel {
-  Comany: string
-  Project: string;
-  Task: string
-  TimeSpent: number;
-}
-
-*/
 
 export default function ReportsPage() {
   const [rows, setRows] = useState<ReportModel[]>([]);
@@ -61,7 +50,7 @@ export default function ReportsPage() {
                 <td>{r?.project_name}</td>
                 <td>{r?.task_name}</td>
                 <td>{r?.day}</td>
-                <td>00:00:{r?.total_seconds}</td>
+                <td>{msToHMS(r?.total_seconds * 1000)}</td>
               </tr>
             ))}
             {rows.length === 0 && (
