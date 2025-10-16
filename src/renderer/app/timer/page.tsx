@@ -14,9 +14,11 @@ type ProjectNames = {
 
 export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | ''>('');
   const [newTask, toggleNewTask] = useState<boolean>(tasks.length === 0);
-  const [taskName, setTaskName] = useState<string>();
+  const [taskName, setTaskName] = useState<string>('');
   const [projects, setProjects] = useState<ProjectModel[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
   const [nowTs, setNowTs] = useState<number>(Date.now());
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [startTs, setStartTs] = useState<number | null>(null);
@@ -41,10 +43,16 @@ export default function TimerPage() {
     const load = async () => {
 
       try {
-        const t = await window.tp.getTasks();
-        const p = await window.tp.getProjectList();
-        setProjects(p);
-        setTasks(t);
+        // Guard against missing preload (window.tp) when running renderer standalone
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const t = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getTasks) ? await (window as any).tp.getTasks() : [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const p = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
+  setProjects(p);
+  setTasks(t);
+  // Do not preselect any option after loading; leave selects empty
+  setSelectedTaskId('');
+  setSelectedProjectId('');
         
         p.forEach((p: ProjectModel) => {
           if (p.id && projectNames.current) projectNames.current[p.id] = p.name;
@@ -85,7 +93,8 @@ export default function TimerPage() {
       });
     }
 
-    const started: number = await window.tp.start(currentTask.current);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const started: number = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.start) ? await (window as any).tp.start(currentTask.current) : -1;
 
     if (started >= 0) {
       setCurrentTask({
@@ -104,9 +113,14 @@ export default function TimerPage() {
       return;
     }
     
-    const stopped: boolean = await window.tp.stop(currentTask.current);
-    console.info(`Session ended: (${currentTask.current.id}) ${stopped}`);
-    //await window.tp.stop(currentTask.current);
+     
+    //const stopped: boolean = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.stop) ? await (window as any).tp.stop(currentTask.current) : false;
+    //console.info(`Session ended: (${currentTask.current.id}) ${stopped}`);
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.stop) {
+      await window.tp.stop(currentTask.current);
+    }
   };
 
   const getTaskById = (id: number): TaskModel => {
@@ -155,17 +169,20 @@ export default function TimerPage() {
   //   console.log("current task:", JSON.stringify(currentTask));
   // }, [currentTask])
 
-  const isSelected = useMemo((): boolean => {
-    //t.id === currentTask.current?.id
-    //console.log(JSON.stringify(currentTask));
-    return false;
-  }, [currentTask.current]) // TODO not sure this is needed.
+  // const isSelected = useMemo((): boolean => {
+  //   //t.id === currentTask.current?.id
+  //   //console.log(JSON.stringify(currentTask));
+  //   return false;
+  // }, [currentTask.current]) // TODO not sure this is needed.
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   return (
     <Sidebar>
       <div className="header">
         <h1 className="title">Timer</h1>
-        <div>{fmtWallClock(nowTs)}</div>
+        <div>{mounted ? fmtWallClock(nowTs) : null}</div>
       </div>
 
       <div className="content">
@@ -174,12 +191,13 @@ export default function TimerPage() {
           <div style={{ display: 'grid', gap: 8 }}>
             <div className="row" style={{ alignItems: 'center' }}>
               <select
-                onChange={(e) => onTaskChange(e.target.value)}
+                value={selectedTaskId}
+                onChange={(e) => { setSelectedTaskId(e.target.value === '' ? '' : Number(e.target.value)); onTaskChange(e.target.value); }}
                 style={{ flex: 2, minWidth: 100 }}
               >
                 <option value="">Select a task</option>
-                {tasks.length > 0 && tasks.map(t => (
-                  <option key={t.id} value={t.id} selected={isSelected}>({(t?.project_id) ? projectNames.current[t.project_id]: "No Project"}) {t.name}</option>
+                {tasks.length > 0 && tasks.map((t, idx) => (
+                  <option key={t.id !== undefined ? `${t.id}-${t.name}` : `task-${idx}`} value={t.id}>({(t?.project_id ? projectNames.current[t.project_id] : "No Project") + ") " + t.name}</option>
                 ))}
               </select>
               { newTask &&
@@ -188,7 +206,7 @@ export default function TimerPage() {
                   <input
                     type="text"
                     placeholder={"enter task name"}
-                    value={taskName}
+                    value={taskName ?? ''}
                     onChange={(e) => setTaskName(e.target.value)}
                     style={{ flex: 2, minWidth: 100 }}
                     disabled={!newTask}
@@ -203,12 +221,13 @@ export default function TimerPage() {
           <section>
             <label>Project</label>
             <select 
-              onChange={(e) => onProjectSelect(Number(e.target.value))}
+              value={selectedProjectId}
+              onChange={(e) => { setSelectedProjectId(e.target.value === '' ? '' : Number(e.target.value)); onProjectSelect(Number(e.target.value)); }}
               disabled={!newTask}
             >
               <option value="">Select a project</option>
-              {projects.length > 0 && projects.map(p => (
-                <option key={p.id} value={p.id} selected={(p.id == currentTask.current?.project_id)}>{p.name}</option>
+              {projects.length > 0 && projects.map((p, idx) => (
+                <option key={p.id !== undefined ? `${p.id}-${p.name}` : `proj-${idx}`} value={p.id}>{p.name}</option>
               ))}
             </select>
           </section>}

@@ -15,8 +15,11 @@ export default function ConfigurePage() {
     (async () => {
       await askPermissions();
 
-      const cos = await window.tp.getCompanyList();
-      const projs = await window.tp.getProjectList();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cos = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getCompanyList) ? await (window as any).tp.getCompanyList() : [];
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const projs = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
 
       if (cos.length > 0) setCompanies(cos);
 
@@ -139,12 +142,13 @@ export default function ConfigurePage() {
                   disabled={(p.id !== undefined && p.id > 0)}
                 />
                 <select
+                  value={p.company_id ?? -1}
                   onChange={(e) => updateProjectCompany(i, Number(e.target.value))}
                   style={{ flex: 1, minWidth: 160 }}
                 >
-                  <option key={-1} value={-1}>{'Select a company'} </option>
+                  <option key={-1} value={-1}>{'Select a company'}</option>
                   {(companies.length ? companies : []).map((co) => (
-                    <option key={co.id} value={co.id} selected={co.id == p.company_id}>
+                    <option key={co.id} value={co.id}>
                       {co.name || ''}
                     </option>
                   ))}
