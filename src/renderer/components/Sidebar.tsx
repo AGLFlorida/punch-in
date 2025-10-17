@@ -2,33 +2,67 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useState, type PropsWithChildren } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, type PropsWithChildren } from 'react';
+import { ClockIcon, GearIcon, ReportIcon } from './CustomImage';
 
 type SidebarProps = PropsWithChildren<object>;
 
 export default function Sidebar({ children }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('sidebarCollapsed');
+      return stored === 'true';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('sidebarCollapsed', collapsed ? 'true' : 'false');
+    }
+  }, [collapsed]);
 
   return (
     <div className={collapsed ? 'collapsed' : ''}>
       <div className="app">
         <aside className="sidebar">
           <div className="sidebarHeader">
-            <span className="hideWhenCollapsed">Punch In</span>
-            <button className="toggle" onClick={() => setCollapsed(!collapsed)}>
-              {collapsed ? '>' : '<'}
-            </button>
+            <div className="logoAndTitle">
+              <Image 
+                src="/logo.png" 
+                alt="Punch In Logo" 
+                width={24} 
+                height={24}
+                className="logo"
+                onClick={() => setCollapsed(!collapsed)}
+              />
+              <span className="hideWhenCollapsed">Punch In</span>
+            </div>
+            {!collapsed ? <button className="toggle" onClick={() => setCollapsed(!collapsed)}>{'<'}</button>:''}
           </div>
           <nav className="nav">
             <Link href="/timer" className={`navBtn ${pathname.startsWith('/timer') ? 'active' : ''}`}>
-              <span className="hideWhenCollapsed">Timer</span>
+              {collapsed ? (
+                <ClockIcon />
+              ) : (
+                <span>Timer</span>
+              )}
             </Link>
             <Link href="/reports" className={`navBtn ${pathname.startsWith('/reports') ? 'active' : ''}`}>
-              <span className="hideWhenCollapsed">Reports</span>
+              {collapsed ? (
+                <ReportIcon />
+              ) : (
+                <span>Reports</span>
+              )}
             </Link>
             <Link href="/configure" className={`navBtn ${pathname.startsWith('/configure') ? 'active' : ''}`}>
-              <span className="hideWhenCollapsed">Configure</span>
+              {collapsed ? (
+                <GearIcon />
+              ) : (
+                <span>Configure</span>
+              )}
             </Link>
           </nav>
         </aside>

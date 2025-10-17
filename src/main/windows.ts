@@ -17,7 +17,7 @@ export async function createMainWindow() {
     webPreferences: {
       preload: path.join(__dirname, '../preload.js'),
       contextIsolation: true,
-      sandbox: (process.env.ENV === "development")
+      sandbox: true
     }, 
   });
   await win.loadURL('app://-/index.html'); // served by protocol.ts

@@ -23,7 +23,6 @@ export default defineConfig([
   {
     ignores: [
       "dist/**",
-      "out/**",
       "**/.next/**",
       "**/*.d.ts",
       "eslint.config.mts"
