@@ -26,6 +26,10 @@ Key facts for an AI code assistant working in this repo
 
 - Dev ergonomics additions (new in this branch):
   - Dev stub: `src/renderer/components/DevTPStub.tsx` provides an in-browser fake `window.tp` implementation for running the renderer standalone. It activates only when `window.tp` is not already present. Use it to prototype UI interactions without starting Electron.
+  - Sidebar UI state persistence: The sidebar collapsed/expanded state should be persisted using `localStorage` in the renderer. Use `useState` with an initializer that reads from `localStorage`, and a `useEffect` to write changes back. This ensures the sidebar state survives navigation and reloads.
+  - Sidebar SVG icons: For sidebar navigation, use inline SVG components with `fill="currentColor"` so icons inherit the parent color (active/inactive state). Do not use Next.js `Image` for SVGs if you need dynamic color changes. If using custom SVGs, ensure the path data matches the viewBox and is visible in the rendered area.
+  - Electron/Next.js asset loading: When packaging, set `assetPrefix: 'app://-/'` in `next.config.js` so static assets resolve correctly via Electron's custom protocol.
+  - UI state persistence: For simple per-user UI preferences (theme, sidebar, etc.), prefer `localStorage` in Electron renderer. Use React context only for session-scoped state sharing.
     - The stub sets `window.__TP_STUB_ACTIVE = true` so components can detect stub mode for UX hints.
   - Dev badge: `src/renderer/components/DevBadge.tsx` shows a small indicator when the stub is active.
   - Guarded calls: renderer pages were updated to defensively call `window.tp` with optional chaining or runtime checks to avoid throwing in standalone mode.
