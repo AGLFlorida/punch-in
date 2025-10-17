@@ -59,13 +59,16 @@ export class CompanyService implements ServiceInterface<CompanyModel> {
         if (has_one[i].id) this.activate(has_one[i].id);
       }
 
-      const ids_only = has_one.map((c: CompanyModel) => c.id);
+      //const ids_only = has_one.map((c: CompanyModel) => c.id);
 
-      toBeAdded = filteredList.filter((c: CompanyModel) => !ids_only.includes(c.id as number));
+      toBeAdded = filteredList.filter((c: CompanyModel) => (c?.id && c.id >= 0));
     } else {
       toBeAdded = filteredList;
     }
 
+    if (toBeAdded.length < 1) return true;
+
+    // TODO: this allows duplicate company names to be saved
     const tx = this.db?.transaction((items: CompanyModel[]) => {
       for (const { name } of items) {
         insert?.run(name.trim());

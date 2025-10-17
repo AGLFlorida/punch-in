@@ -26,14 +26,16 @@ Key facts for an AI code assistant working in this repo
 
 - Dev ergonomics additions (new in this branch):
   - Dev stub: `src/renderer/components/DevTPStub.tsx` provides an in-browser fake `window.tp` implementation for running the renderer standalone. It activates only when `window.tp` is not already present. Use it to prototype UI interactions without starting Electron.
-  - Sidebar UI state persistence: The sidebar collapsed/expanded state should be persisted using `localStorage` in the renderer. Use `useState` with an initializer that reads from `localStorage`, and a `useEffect` to write changes back. This ensures the sidebar state survives navigation and reloads.
-  - Sidebar SVG icons: For sidebar navigation, use inline SVG components with `fill="currentColor"` so icons inherit the parent color (active/inactive state). Do not use Next.js `Image` for SVGs if you need dynamic color changes. If using custom SVGs, ensure the path data matches the viewBox and is visible in the rendered area.
+  - Sidebar UI state persistence: The sidebar collapsed/expanded state is persisted using `localStorage` in the renderer. Use `useState` with a `useEffect` to read/write state, ensuring hydration consistency and persistence across navigation.
+  - Sidebar SVG icons: For sidebar navigation, use inline SVG components with `fill="currentColor"` so icons inherit the parent color (active/inactive state). Icons and text are horizontally aligned with a small gap, and the gap disappears when collapsed. Do not use Next.js `Image` for SVGs if you need dynamic color changes. If using custom SVGs, ensure the path data matches the viewBox and is visible in the rendered area.
   - Electron/Next.js asset loading: When packaging, set `assetPrefix: 'app://-/'` in `next.config.js` so static assets resolve correctly via Electron's custom protocol.
   - UI state persistence: For simple per-user UI preferences (theme, sidebar, etc.), prefer `localStorage` in Electron renderer. Use React context only for session-scoped state sharing.
     - The stub sets `window.__TP_STUB_ACTIVE = true` so components can detect stub mode for UX hints.
-  - Dev badge: `src/renderer/components/DevBadge.tsx` shows a small indicator when the stub is active.
-  - Guarded calls: renderer pages were updated to defensively call `window.tp` with optional chaining or runtime checks to avoid throwing in standalone mode.
-  - Select controls: several pages had `selected` props on `<option>` elements (React warning). These were converted to controlled `<select value=...>` usage (see `configure/page.tsx` and `timer/page.tsx`).
+  - Dev badge: `src/renderer/components/DevBadge.tsx` shows a small indicator when the stub is active. It uses `useEffect` and `useState` to check the stub flag after mount for reliable detection.
+  - Guarded calls: renderer pages defensively call `window.tp` with optional chaining or runtime checks to avoid errors in standalone mode.
+  - Select controls: All `<select>` elements use controlled `value` props. After loading from the DB, ensure all IDs (e.g., `company_id`) are numbers for correct selection. Avoid type sniffing in render; normalize data after load if needed.
+  - NotifyBox: Use `NotifyBox` for in-app notifications (see `configure/page.tsx`).
+  - DRY data loading: When loading companies/projects, use a shared async function (e.g., `loadSelectables`) to avoid duplication and ensure normalization.
 
 - Build / dev / test workflows (concrete commands)
   - Dev renderer only: npm run dev:ui  (runs Next dev for `src/renderer`)
@@ -53,6 +55,8 @@ Key facts for an AI code assistant working in this repo
   - Native module rebuild is required for `better-sqlite3`. CI/packaging must include `electron-rebuild` or run `npm run rebuild:sqlite`.
   - The DB initializer function is named `createScema` (note spelling) — search that exact name if tracing schema code.
   - Development-only CSP: to enable React Fast Refresh in Next dev the layout includes `'unsafe-eval'` in the CSP only when NODE_ENV === 'development'. Be cautious: do not copy that relaxed CSP to production.
+  - For all select controls, ensure IDs are always numbers after loading from the DB. Normalize data in the loader, not in the render.
+  - When updating arrays in React state, always use the functional update form (e.g., `setArr(prev => [...prev, item])`) to avoid mutation bugs.
 
 - Quick how-to examples (minimal, concrete)
   - Add a new IPC handler: create `src/main/handlers/foo.ts` that returns a factory (services) => ({ myAction: (e, arg) => { ... } }); then import and wire it in `src/main/handlers/index.ts` with `ipcMain.handle('tp:myAction', fooHandler(services).myAction)` and expose a matching method in `src/preload.ts`.

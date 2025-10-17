@@ -3,23 +3,17 @@
 import { useEffect, useState } from 'react';
 import { CompanyModel } from 'src/main/services/company';
 import { ProjectModel } from 'src/main/services/project';
+import { NotifyBox } from '@/components/Notify';
 
 export default function ConfigurePage() {
   const [companies, setCompanies] = useState<CompanyModel[]>([]);
   const [projects, setProjects] = useState<ProjectModel[]>([]);
   const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<ProjectModel[]>([]);
+  const [didSave, setDidSave] = useState<boolean>(false);
 
   useEffect(() => {
-    (async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cos = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getCompanyList) ? await (window as any).tp.getCompanyList() : [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const projs = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
-
-      if (cos.length > 0) setCompanies(cos);
-      if (projs.length > 0) setProjects(projs);
-    })();
+    loadSelectables();
   }, []);
 
   const addCompany = () => {
@@ -31,10 +25,8 @@ export default function ConfigurePage() {
   }
 
   const removeCompany = (i: number) => {
+    setDeletedCompanies((prev) => [...prev, companies[i]]);
     setCompanies((prev) => prev.filter((_, idx) => idx !== i));
-    const _delCo = deletedCompanies;
-    _delCo.push(companies[i]);
-    setDeletedCompanies(_delCo);
   }
 
   const addProject = () => 
@@ -51,10 +43,19 @@ export default function ConfigurePage() {
     }
   
   const removeProject = (i: number) => {
+    setDeletedProjects((prev) => [...prev, projects[i]]);
     setProjects((prev) => prev.filter((_, idx) => idx !== i));
-    const _delProj = deletedProjects;
-    _delProj.push(projects[i])
-    setDeletedProjects(_delProj);
+  }
+
+  // (Re)load companies and projects from DB to update UI
+  const loadSelectables = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cos = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getCompanyList) ? await (window as any).tp.getCompanyList() : [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const projs = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
+      
+      if (cos.length > 0) setCompanies(cos);
+      if (projs.length > 0) setProjects(projs);
   }
 
   const onSave = async () => {
@@ -66,14 +67,8 @@ export default function ConfigurePage() {
         setDeletedCompanies([]); // need to reset state after mutation.
       }
 
-      //const c = companies.map(c => c);
       const filteredCompanies = companies.filter((c: CompanyModel) => c.name.trim() != "")
       await window.tp.setCompanyList(filteredCompanies);
-      //setCompanies(companies); // need to reset state after mutation.
-
-      // const p = projects.map(p => { return {
-      //   name: p.name.trim(), company: p.company_id
-      // }}).filter(Boolean);
 
       if (deletedProjects.length > 0) {
         for (const i in deletedProjects) {
@@ -84,7 +79,10 @@ export default function ConfigurePage() {
 
       const filteredProjects = projects.filter((p: ProjectModel) => p.company_id != -1)
       await window.tp.setProjectList(filteredProjects);
-      // TODO: Add notification logic here if needed
+
+      loadSelectables();
+
+      setDidSave(true);
     } catch (e) {
       console.error(e);
     } 
@@ -92,6 +90,12 @@ export default function ConfigurePage() {
 
   return (
     <>
+      {didSave && (
+        <NotifyBox
+          opts={{ title: "Save Successful" }}
+          close={() => setDidSave(false)}
+        />
+      )}
       <div className="header">
         <h1 className="title">Configure</h1>
         <button onClick={onSave}>Save</button>
@@ -141,7 +145,7 @@ export default function ConfigurePage() {
                   style={{ flex: 1, minWidth: 160 }}
                 >
                   <option key={-1} value={-1}>{'Select a company'}</option>
-                  {(companies.length ? companies : []).map((co) => (
+                  {(companies.length ? companies : []).map((co) => ( (co.id && co.id >= 0) &&
                     <option key={co.id} value={co.id}>
                       {co.name || ''}
                     </option>

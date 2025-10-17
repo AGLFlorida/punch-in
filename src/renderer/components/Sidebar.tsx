@@ -47,22 +47,25 @@ export default function Sidebar({ children }: SidebarProps) {
           </div>
           <nav className="nav">
             <Link href="/timer" className={`navBtn ${pathname.startsWith('/timer') ? 'active' : ''}`}>
+              <ClockIcon />
               {collapsed ? (
-                <ClockIcon />
+                ''
               ) : (
                 <span>Timer</span>
               )}
             </Link>
             <Link href="/reports" className={`navBtn ${pathname.startsWith('/reports') ? 'active' : ''}`}>
+              <ReportIcon />
               {collapsed ? (
-                <ReportIcon />
+                ''
               ) : (
                 <span>Reports</span>
               )}
             </Link>
             <Link href="/configure" className={`navBtn ${pathname.startsWith('/configure') ? 'active' : ''}`}>
+              <GearIcon />
               {collapsed ? (
-                <GearIcon />
+                ''
               ) : (
                 <span>Configure</span>
               )}
