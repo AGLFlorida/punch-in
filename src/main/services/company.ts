@@ -100,7 +100,7 @@ export class CompanyService implements ServiceInterface<CompanyModel> {
       WHERE id = ?`).run(c.id);
 
     if (del?.changes && del?.changes > 0) {
-      console.log("removed: ", del?.lastInsertRowid);
+      //console.log("removed: ", del?.lastInsertRowid);
       return true;
     }
 

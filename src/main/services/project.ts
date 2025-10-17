@@ -46,7 +46,7 @@ export class ProjectService implements ServiceInterface<ProjectModel> {
       WHERE id = ?`).run(p.id);
 
     if (del?.changes && del?.changes > 0) {
-      console.log("removed: ", del?.lastInsertRowid);
+      //console.log("removed: ", del?.lastInsertRowid);
       return true;
     }
 
