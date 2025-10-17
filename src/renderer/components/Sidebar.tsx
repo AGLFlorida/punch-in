@@ -10,14 +10,17 @@ type SidebarProps = PropsWithChildren<object>;
 
 export default function Sidebar({ children }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(() => {
+  const [collapsed, setCollapsed] = useState<boolean>(false);
+
+  // Load collapsed state from localStorage after mount
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('sidebarCollapsed');
-      return stored === 'true';
+      if (stored !== null) setCollapsed(stored === 'true');
     }
-    return false;
-  });
+  }, []);
 
+  // Save collapsed state to localStorage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('sidebarCollapsed', collapsed ? 'true' : 'false');

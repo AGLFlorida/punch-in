@@ -1,12 +1,9 @@
 'use client';
 
-import Sidebar from '@/components/Sidebar';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { fmtWallClock, msToHMS } from '@/lib/time';
 import { TaskModel } from 'src/main/services/task';
 import { ProjectModel } from 'src/main/services/project';
-
-// TODO the running timer doesn't always refresh properly, making it look like we are skipping seconds.
 
 type ProjectNames = {
   [key: number]: string;
@@ -218,10 +215,10 @@ export default function TimerPage() {
   useEffect(() => { setMounted(true); }, []);
 
   return (
-    <Sidebar>
+    <>
       <div className="header">
         <h1 className="title">Timer</h1>
-        <div>{mounted ? wallClock : null}</div>
+        <div style={{ padding: '10px 14px' }}>{mounted ? wallClock : null}</div>
       </div>
 
       <div className="content">
@@ -281,6 +278,6 @@ export default function TimerPage() {
           <div><span className="label">Status:</span> {isRunning ? 'Running' : 'Idle'}</div>
         </div>
       </div>
-    </Sidebar>
+    </>
   );
 }

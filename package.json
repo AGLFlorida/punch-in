@@ -11,7 +11,7 @@
     "static:ui": "npm run build:ui && npm run export:ui",
     "dev": "ENV=development ELECTRON_ENABLE_LOGGING=1 npm start -s",
     "dev:debug": "ENABLE_CONSOLE=1 npm run -s dev",
-    "dev:ui": "DEV_UI_STUB=1 next dev src/renderer",
+    "dev:ui": "cp img/logo.png src/renderer/public && DEV_UI_STUB=1 next dev src/renderer",
     "test": "jest --runInBand",
     "lint": "eslint .",
     "package": "npm run build && electron-packager . PunchIn --platform=darwin --arch=arm64 --out=out --overwrite --icon=img/icon.icns",

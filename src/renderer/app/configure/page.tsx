@@ -1,6 +1,5 @@
 'use client';
 
-import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
 import { CompanyModel } from 'src/main/services/company';
 import { ProjectModel } from 'src/main/services/project';
@@ -13,18 +12,13 @@ export default function ConfigurePage() {
 
   useEffect(() => {
     (async () => {
-      await askPermissions();
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cos = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getCompanyList) ? await (window as any).tp.getCompanyList() : [];
-      
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const projs = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
 
       if (cos.length > 0) setCompanies(cos);
-
       if (projs.length > 0) setProjects(projs);
-
     })();
   }, []);
 
@@ -90,14 +84,14 @@ export default function ConfigurePage() {
 
       const filteredProjects = projects.filter((p: ProjectModel) => p.company_id != -1)
       await window.tp.setProjectList(filteredProjects);
-      await notify("Notification", "Save Successful.")
+      // TODO: Add notification logic here if needed
     } catch (e) {
       console.error(e);
     } 
   };
 
   return (
-    <Sidebar>
+    <>
       <div className="header">
         <h1 className="title">Configure</h1>
         <button onClick={onSave}>Save</button>
@@ -162,26 +156,6 @@ export default function ConfigurePage() {
           </div>
         </section>
       </div>
-    </Sidebar>
+    </>
   );
-}
-
-async function askPermissions(): Promise<boolean> {
-  // TODO: need to fix this. it's a little weird and the perm setting is buried as 'Electron' in system settings.
-  let perm: NotificationPermission = Notification.permission;
-
-  //console.log(`permissions: ${perm}`);
-
-  if (perm !== 'granted') {
-    perm = await Notification.requestPermission(); // <- use return value
-  }
-
-  return (perm === 'granted');
-}
-async function notify(title: string, body?: string) {
-  const granted = await askPermissions();
-
-  if (granted) {
-    new Notification(title, { body });
-  }
 }

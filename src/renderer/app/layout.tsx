@@ -2,6 +2,7 @@ import '@/style.css';
 import React from 'react';
 import DevTPStub from '../components/DevTPStub';
 import DevBadge from '../components/DevBadge';
+import Sidebar from '../components/Sidebar';
 
 export const metadata = { 
   title: 'Punch In',
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        {children}
+        <Sidebar>
+          {children}
+        </Sidebar>
         {(process.env.DEV_UI_STUB === "1") &&
           <>
             <DevTPStub />

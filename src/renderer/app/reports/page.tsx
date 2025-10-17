@@ -1,6 +1,5 @@
 'use client';
 
-import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
 import { msToHMS } from '@/lib/time';
 import type { ReportModel } from '../../../main/services/report';
@@ -26,7 +25,7 @@ export default function ReportsPage() {
   }, []);
 
   return (
-    <Sidebar>
+    <>
       <div className="header">
         <h1 className="title">Reports</h1>
         <button onClick={load}>Refresh</button>
@@ -61,6 +60,6 @@ export default function ReportsPage() {
           </tbody>
         </table>
       </div>
-    </Sidebar>
+    </>
   );
 }
