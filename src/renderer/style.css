@@ -57,11 +57,16 @@ body { color: #1f2937; background: #ffffff; }
   background: #fff;
   cursor: pointer;
   color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
 }
 .navBtn.active { 
   background: #111827; 
   color: #fff; 
   border-color: #111827; 
+  text-decoration: none;
 }
 
 .main {
@@ -113,4 +118,5 @@ button.danger { background: #fee2e2; border-color: #fca5a5; }
   align-items: center;
   justify-content: center;
   padding: 10px;
+  gap: 0;
 }
