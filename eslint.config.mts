@@ -25,7 +25,8 @@ export default defineConfig([
       "dist/**",
       "**/.next/**",
       "**/*.d.ts",
-      "eslint.config.mts"
+      "eslint.config.mts",
+      "out/**"
     ]
   }
 ]);
