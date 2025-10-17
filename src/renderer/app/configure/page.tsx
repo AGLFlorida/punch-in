@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { CompanyModel } from 'src/main/services/company';
 import { ProjectModel } from 'src/main/services/project';
+import { NotifyBox } from '@/components/Notify';
 
 export default function ConfigurePage() {
   const [companies, setCompanies] = useState<CompanyModel[]>([]);
   const [projects, setProjects] = useState<ProjectModel[]>([]);
   const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<ProjectModel[]>([]);
+  const [didSave, setDidSave] = useState<boolean>(false);
 
   useEffect(() => {
     (async () => {
@@ -84,7 +86,7 @@ export default function ConfigurePage() {
 
       const filteredProjects = projects.filter((p: ProjectModel) => p.company_id != -1)
       await window.tp.setProjectList(filteredProjects);
-      // TODO: Add notification logic here if needed
+      setDidSave(true);
     } catch (e) {
       console.error(e);
     } 
@@ -92,6 +94,12 @@ export default function ConfigurePage() {
 
   return (
     <>
+      {didSave && (
+        <NotifyBox
+          opts={{ title: "Save Successful" }}
+          close={() => setDidSave(false)}
+        />
+      )}
       <div className="header">
         <h1 className="title">Configure</h1>
         <button onClick={onSave}>Save</button>

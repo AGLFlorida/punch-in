@@ -5,3 +5,4 @@
 * During build (npm run dev), we get the following warning: "The Next.js plugin was not detected in your ESLint configuration. [...]"
 * We need to be able to query by report dates and filter by company instead of just showing everything all of the time.
 * We need to introduce better DB schema versioning and migration strageties / support.
+* Migrate to electron-builder and electron-updater, remove electron packager.
