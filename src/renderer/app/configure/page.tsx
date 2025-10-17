@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { CompanyModel } from 'src/main/services/company';
 import { ProjectModel } from 'src/main/services/project';
 import { NotifyBox } from '@/components/Notify';
+import { TrashIcon } from '@/components/CustomImage';
 
 export default function ConfigurePage() {
   const [companies, setCompanies] = useState<CompanyModel[]>([]);
@@ -116,8 +117,8 @@ export default function ConfigurePage() {
                   style={{ flex: 2, minWidth: 200 }}
                   disabled={(c.id !== undefined && c.id > 0)}
                 />
-                <button onClick={() => removeCompany(i)} disabled={companies.length <= 1}>
-                  Remove
+                <button onClick={() => removeCompany(i)} disabled={companies.length <= 1} aria-label="Remove company" title="Remove company" style={{ padding: 8 }}>
+                  <TrashIcon />
                 </button>
               </div>
             ))}
@@ -151,8 +152,8 @@ export default function ConfigurePage() {
                     </option>
                   ))}
                 </select>
-                <button onClick={() => removeProject(i)} disabled={projects.length <= 1}>
-                  Remove
+                <button onClick={() => removeProject(i)} aria-label="Remove project" title="Remove project" style={{ padding: 8 }}>
+                  <TrashIcon />
                 </button>
               </div>
             ))}
