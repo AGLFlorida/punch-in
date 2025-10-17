@@ -13,15 +13,7 @@ export default function ConfigurePage() {
   const [didSave, setDidSave] = useState<boolean>(false);
 
   useEffect(() => {
-    (async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cos = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getCompanyList) ? await (window as any).tp.getCompanyList() : [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const projs = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
-
-      if (cos.length > 0) setCompanies(cos);
-      if (projs.length > 0) setProjects(projs);
-    })();
+    loadSelectables();
   }, []);
 
   const addCompany = () => {
@@ -59,6 +51,17 @@ export default function ConfigurePage() {
     setDeletedProjects(_delProj);
   }
 
+  // (Re)load companies and projects from DB to update UI
+  const loadSelectables = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cos = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getCompanyList) ? await (window as any).tp.getCompanyList() : [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const projs = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
+      
+      if (cos.length > 0) setCompanies(cos);
+      if (projs.length > 0) setProjects(projs);
+  }
+
   const onSave = async () => {
     try {
       if (deletedCompanies.length > 0) {
@@ -80,12 +83,15 @@ export default function ConfigurePage() {
 
       const filteredProjects = projects.filter((p: ProjectModel) => p.company_id != -1)
       await window.tp.setProjectList(filteredProjects);
+
+      loadSelectables();
+
       setDidSave(true);
     } catch (e) {
       console.error(e);
     } 
   };
-  
+
   return (
     <>
       {didSave && (
