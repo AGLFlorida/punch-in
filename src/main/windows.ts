@@ -2,6 +2,7 @@ import { BrowserWindow, app, nativeImage } from 'electron';
 import path from 'node:path';
 
 function resolveAsset(...segments: string[]) {
+  // Use correct asset root for packaged vs dev
   const base = app.isPackaged ? process.resourcesPath : process.cwd();
   return path.join(base, ...segments);
 }
@@ -18,10 +19,10 @@ export async function createMainWindow() {
       preload: path.join(__dirname, '../preload.js'),
       contextIsolation: true,
       sandbox: true
-    }, 
+    },
   });
   await win.loadURL('app://-/index.html'); // served by protocol.ts
-  
+
   // On macOS set Dock icon explicitly (works when packaged)
   if (process.platform === 'darwin' && !icon.isEmpty() && app.dock) {
     try { app.dock.setIcon(icon); } catch { /* ignore in unsupported runtimes */ }
@@ -31,6 +32,6 @@ export async function createMainWindow() {
     console.info(`ENABLE_CONSOLE: ${process.env.ENABLE_CONSOLE}, Opening Dev tools`)
     win.webContents.openDevTools();
   }
-  
+
   return win;
 }
