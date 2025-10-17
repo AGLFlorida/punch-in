@@ -68,14 +68,8 @@ export default function ConfigurePage() {
         setDeletedCompanies([]); // need to reset state after mutation.
       }
 
-      //const c = companies.map(c => c);
       const filteredCompanies = companies.filter((c: CompanyModel) => c.name.trim() != "")
       await window.tp.setCompanyList(filteredCompanies);
-      //setCompanies(companies); // need to reset state after mutation.
-
-      // const p = projects.map(p => { return {
-      //   name: p.name.trim(), company: p.company_id
-      // }}).filter(Boolean);
 
       if (deletedProjects.length > 0) {
         for (const i in deletedProjects) {
@@ -91,7 +85,7 @@ export default function ConfigurePage() {
       console.error(e);
     } 
   };
-
+  
   return (
     <>
       {didSave && (
@@ -149,7 +143,7 @@ export default function ConfigurePage() {
                   style={{ flex: 1, minWidth: 160 }}
                 >
                   <option key={-1} value={-1}>{'Select a company'}</option>
-                  {(companies.length ? companies : []).map((co) => (
+                  {(companies.length ? companies : []).map((co) => ( (co.id && co.id >= 0) &&
                     <option key={co.id} value={co.id}>
                       {co.name || ''}
                     </option>
