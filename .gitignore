@@ -9,3 +9,5 @@ out
 .next
 
 **/next-env.d.ts
+
+src/renderer/public/logo.png
