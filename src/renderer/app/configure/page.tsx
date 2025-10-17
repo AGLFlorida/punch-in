@@ -25,10 +25,8 @@ export default function ConfigurePage() {
   }
 
   const removeCompany = (i: number) => {
+    setDeletedCompanies((prev) => [...prev, companies[i]]);
     setCompanies((prev) => prev.filter((_, idx) => idx !== i));
-    const _delCo = deletedCompanies;
-    _delCo.push(companies[i]);
-    setDeletedCompanies(_delCo);
   }
 
   const addProject = () => 
@@ -45,10 +43,8 @@ export default function ConfigurePage() {
     }
   
   const removeProject = (i: number) => {
+    setDeletedProjects((prev) => [...prev, projects[i]]);
     setProjects((prev) => prev.filter((_, idx) => idx !== i));
-    const _delProj = deletedProjects;
-    _delProj.push(projects[i])
-    setDeletedProjects(_delProj);
   }
 
   // (Re)load companies and projects from DB to update UI
