@@ -36,6 +36,7 @@ Key facts for an AI code assistant working in this repo
   - Select controls: All `<select>` elements use controlled `value` props. After loading from the DB, ensure all IDs (e.g., `company_id`) are numbers for correct selection. Avoid type sniffing in render; normalize data after load if needed.
   - NotifyBox: Use `NotifyBox` for in-app notifications (see `configure/page.tsx`).
   - DRY data loading: When loading companies/projects, use a shared async function (e.g., `loadSelectables`) to avoid duplication and ensure normalization.
+  - Filtering and sorting patterns: For list/table views (e.g., `reports/page.tsx`), use `useMemo` to compute filtered and sorted data. Extract unique filter values from loaded data (e.g., companies). Implement column sorting with click handlers on table headers and show sort indicators (↑/↓). Use controlled inputs for filters (select dropdowns, date pickers) and apply filters + sort in a single `useMemo` for performance.
 
 - Build / dev / test workflows (concrete commands)
   - Dev renderer only: npm run dev:ui  (runs Next dev for `src/renderer`)
