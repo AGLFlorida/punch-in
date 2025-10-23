@@ -14,6 +14,7 @@ export default function ReportsPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [sortColumn, setSortColumn] = useState<SortColumn>('day');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [wtdMode, setWtdMode] = useState<boolean>(false);
 
   const load = async () => {
     try {
@@ -50,10 +51,46 @@ export default function ReportsPage() {
       filtered = filtered.filter(r => r?.day === selectedDate);
     }
 
+    // If WTD mode, aggregate by project and week
+    if (wtdMode) {
+      const weeklyData = new Map<string, ReportModel & { week_range?: string }>();
+
+      filtered.forEach(r => {
+        if (!r?.day || !r?.project_name) return;
+        
+        // Calculate Monday of the week for this date
+        const date = new Date(r.day);
+        const dayOfWeek = date.getDay();
+        const monday = new Date(date);
+        monday.setDate(date.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+        
+        // Calculate Sunday of the week
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        
+        const weekKey = `${r.company_name}-${r.project_name}-${monday.toISOString().split('T')[0]}`;
+        const weekRange = `${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${sunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        
+        if (weeklyData.has(weekKey)) {
+          weeklyData.get(weekKey)!.total_seconds += r.total_seconds || 0;
+        } else {
+          weeklyData.set(weekKey, {
+            ...r,
+            task_name: '', // Not shown in WTD mode
+            day: weekRange, // Replace day with week range
+            week_range: weekRange,
+            total_seconds: r.total_seconds || 0
+          });
+        }
+      });
+
+      filtered = Array.from(weeklyData.values());
+    }
+
     // Sort
     const sorted = [...filtered].sort((a, b) => {
-      let aVal = a[sortColumn];
-      let bVal = b[sortColumn];
+      let aVal = a[sortColumn as keyof typeof a];
+      let bVal = b[sortColumn as keyof typeof b];
 
       // Handle null/undefined
       if (aVal === null || aVal === undefined) return 1;
@@ -69,7 +106,7 @@ export default function ReportsPage() {
     });
 
     return sorted;
-  }, [rows, selectedCompany, selectedDate, sortColumn, sortDirection]);
+  }, [rows, selectedCompany, selectedDate, sortColumn, sortDirection, wtdMode]);
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -90,6 +127,21 @@ export default function ReportsPage() {
       <div className="content">
         {/* Filters */}
         <div className="row" style={{ marginBottom: 16, alignItems: 'center' }}>
+          <button 
+            onClick={() => setWtdMode(!wtdMode)}
+            style={{ 
+              marginRight: 16,
+              backgroundColor: wtdMode ? '#111827' : '#fff',
+              color: wtdMode ? '#fff' : '#1f2937',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              cursor: 'pointer'
+            }}
+          >
+            WTD
+          </button>
+
           <label style={{ marginBottom: 0, marginRight: 8 }}>Company:</label>
           <select
             value={selectedCompany}
@@ -108,6 +160,7 @@ export default function ReportsPage() {
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             style={{ width: 'auto' }}
+            disabled={wtdMode}
           />
         </div>
 
@@ -120,11 +173,13 @@ export default function ReportsPage() {
               <th onClick={() => handleSort('project_name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                 Project {sortColumn === 'project_name' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th onClick={() => handleSort('task_name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                Task {sortColumn === 'task_name' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </th>
+              {!wtdMode && (
+                <th onClick={() => handleSort('task_name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Task {sortColumn === 'task_name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </th>
+              )}
               <th onClick={() => handleSort('day')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                Date {sortColumn === 'day' && (sortDirection === 'asc' ? '↑' : '↓')}
+                {wtdMode ? 'Week' : 'Date'} {sortColumn === 'day' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th onClick={() => handleSort('total_seconds')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                 Time (HH:MM:SS) {sortColumn === 'total_seconds' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -136,14 +191,14 @@ export default function ReportsPage() {
               <tr key={idx}>
                 <td>{r?.company_name}</td>
                 <td>{r?.project_name}</td>
-                <td>{r?.task_name}</td>
+                {!wtdMode && <td>{r?.task_name}</td>}
                 <td>{r?.day}</td>
                 <td>{msToHMS(r?.total_seconds * 1000)}</td>
               </tr>
             ))}
             {filteredAndSortedRows.length === 0 && (
               <tr>
-                <td colSpan={5}>No sessions yet.</td>
+                <td colSpan={wtdMode ? 4 : 5}>No sessions yet.</td>
               </tr>
             )}
           </tbody>
