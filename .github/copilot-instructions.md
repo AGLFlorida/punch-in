@@ -37,6 +37,7 @@ Key facts for an AI code assistant working in this repo
   - NotifyBox: Use `NotifyBox` for in-app notifications (see `configure/page.tsx`).
   - DRY data loading: When loading companies/projects, use a shared async function (e.g., `loadSelectables`) to avoid duplication and ensure normalization.
   - Filtering and sorting patterns: For list/table views (e.g., `reports/page.tsx`), use `useMemo` to compute filtered and sorted data. Extract unique filter values from loaded data (e.g., companies). Implement column sorting with click handlers on table headers and show sort indicators (↑/↓). Use controlled inputs for filters (select dropdowns, date pickers) and apply filters + sort in a single `useMemo` for performance.
+  - Toggle views and data aggregation: For reports that need multiple view modes (e.g., daily vs weekly), use state to toggle between modes and conditional logic in `useMemo` to aggregate data differently. Hide/show columns based on mode, adjust table headers dynamically, and handle date grouping (e.g., Monday-based weeks). Disable irrelevant filters when in aggregated modes.
 
 - Build / dev / test workflows (concrete commands)
   - Dev renderer only: npm run dev:ui  (runs Next dev for `src/renderer`)
