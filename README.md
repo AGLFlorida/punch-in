@@ -46,11 +46,15 @@ Build for production:
 npm run build
 ```
 
-Start the packaged app (after build):
+This command runs lint checks and tests before building. The build process automatically rebuilds `better-sqlite3` for Node.js before running tests, and for Electron before starting the app.
+
+Build and package for release:
 
 ```bash
-npm start
+npm run build:release
 ```
+
+This runs the complete release workflow: rebuilds for Node.js → runs tests → rebuilds for Electron → builds → packages the app.
 
 Testing & linting
 
@@ -60,6 +64,8 @@ Run the test suite (Jest):
 npm test
 ```
 
+Tests automatically rebuild `better-sqlite3` for Node.js before running.
+
 Run lint checks:
 
 ```bash
@@ -67,11 +73,16 @@ npm run lint
 ```
 
 Important developer notes
-- Native sqlite: `better-sqlite3` is a native module. The project runs `electron-rebuild` in `postinstall` and before `start`/`package`. If CI or your machine changes Node/Electron versions, run:
-
-```bash
-npm run rebuild:sqlite
-```
+- Native sqlite: `better-sqlite3` is a native module that must be built for different runtimes:
+  - Node.js runtime for tests
+  - Electron runtime for running/packaging the app
+  
+  The project automatically handles rebuilds via npm lifecycle hooks (`pretest`, `prestart`, `prepackage`). If you need to manually rebuild:
+  
+  ```bash
+  npm run rebuild:sqlite:node      # For Node.js (tests)
+  npm run rebuild:sqlite:electron  # For Electron (running/packaging)
+  ```
 
 - DB location: the SQLite DB file lives in Electron's `userData` directory (see `src/main/services/data.ts`). Schema is created programmatically; the initializer is named `createScema` (note the spelling).
 
