@@ -16,6 +16,7 @@ const config: Config = {
       testEnvironment: 'node',
       testMatch: ['**/src/**/*.test.(ts|js)', '!**/src/renderer/**/*.test.tsx'],
       moduleFileExtensions: ['ts', 'js', 'json'],
+      setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup-node.ts'],
     },
     {
       displayName: 'jsdom',

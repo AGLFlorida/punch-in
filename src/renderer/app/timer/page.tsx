@@ -134,12 +134,27 @@ export default function TimerPage() {
   }, [isRunning, startTs]);
 
   const onStart = async () => {
-    if (!currentTask.current || !currentTask.current?.project_id || (!taskName && newTask)) {
-      console.error("Could not start undefined task:", JSON.stringify(currentTask.current));
-      return;
+    // For new tasks, ensure we use the selected project and task name
+    if (newTask) {
+      if (!selectedProjectId || !taskName?.trim()) {
+        console.error("Could not start: missing project or task name");
+        return;
+      }
+      
+      // Update currentTask with selected project and task name
+      setCurrentTask({
+        name: taskName.trim(),
+        project_id: selectedProjectId
+      } as TaskModel);
+    } else {
+      // For existing tasks, validate currentTask
+      if (!currentTask.current || !currentTask.current?.project_id) {
+        console.error("Could not start undefined task:", JSON.stringify(currentTask.current));
+        return;
+      }
     }
 
-    // TODO this is a weird place to do this but it works for now.
+    // Ensure currentTask has the latest task name if it was edited
     if (taskName?.trim() && taskName.trim() != currentTask.current?.name?.trim()) {
       console.info("Task names do not match. Syncing...")
       setCurrentTask({
@@ -151,10 +166,11 @@ export default function TimerPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const started: number = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.start) ? await (window as any).tp.start(currentTask.current) : -1;
 
-    if (started >= 0) {
+    if (started >= 0 && currentTask.current) {
       setCurrentTask({
         ...currentTask.current,
-        id: started
+        id: started,
+        name: currentTask.current.name ?? taskName ?? ''
       });
       setStartTs(Date.now());
       setIsRunning(true);
@@ -189,18 +205,34 @@ export default function TimerPage() {
   const onTaskChange = (v: string) => {
     const task_id = Number(v); // TODO there needs to be a cleaner way to do this.
 
-    const someTask = getTaskById(task_id);
-    setCurrentTask(someTask);
-
-    toggleNewTask(!!!v);
+    const isNewTask = !!!v;
+    
+    if (isNewTask) {
+      // Switching to new task mode: reset currentTask and keep selectedProjectId
+      // (user can change it via project selector)
+      setCurrentTask({
+        name: taskName,
+        project_id: selectedProjectId || undefined
+      } as TaskModel);
+      toggleNewTask(true);
+    } else {
+      // Selecting an existing task: load the task and update selectedProjectId to match
+      const someTask = getTaskById(task_id);
+      setCurrentTask(someTask);
+      if (someTask?.project_id) {
+        setSelectedProjectId(someTask.project_id);
+      }
+      toggleNewTask(false);
+    }
   };
 
   const onProjectSelect = (id: number) => {
-    // TODO: UX fix, you can't change the project ID of a task (yet)
-    if (currentTask.current?.id == undefined) {
+    // Always allow updating project_id when creating a new task
+    // (when newTask is true or when there's no existing task id)
+    if (newTask || !currentTask.current?.id) {
       setCurrentTask({
         ...currentTask.current,
-        name: currentTask.current?.name ?? "",
+        name: currentTask.current?.name ?? taskName ?? "",
         project_id: id
       });
     }
