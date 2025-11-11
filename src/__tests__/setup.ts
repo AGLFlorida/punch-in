@@ -4,6 +4,20 @@
 import '@testing-library/jest-dom';
 import React from 'react';
 
+// Disable console.log and console.info during tests
+const originalLog = console.log;
+const originalInfo = console.info;
+
+beforeAll(() => {
+  console.log = jest.fn();
+  console.info = jest.fn();
+});
+
+afterAll(() => {
+  console.log = originalLog;
+  console.info = originalInfo;
+});
+
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/'),
