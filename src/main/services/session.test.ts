@@ -91,7 +91,9 @@ describe('SessionService', () => {
 
       const session = service.getOne();
       expect(session).not.toBeNull();
-      expect(session?.task_id).toBe(testTaskId);
+      // SessionModel interface expects 'task' but getOne() returns raw row with 'task_id'
+      const rowData = session as unknown as { id: number; task_id: number; start_time: number; end_time: number | null };
+      expect(rowData.task_id).toBe(testTaskId);
     });
 
     test('closes existing open session before starting new one', () => {

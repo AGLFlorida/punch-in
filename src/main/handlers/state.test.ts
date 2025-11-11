@@ -16,7 +16,7 @@ describe('stateHandler', () => {
     test('returns state with running false when no open session', async () => {
       mockServices.session = () => ({
         getOne: () => null,
-      } as SessionService);
+      } as unknown as SessionService);
 
       const state = await handler.getState();
       expect(state.running).toBe(false);
@@ -31,8 +31,8 @@ describe('stateHandler', () => {
       };
 
       mockServices.session = () => ({
-        getOne: () => mockSession as SessionModel,
-      } as SessionService);
+        getOne: () => mockSession as unknown as SessionModel,
+      } as unknown as SessionService);
 
       const state = await handler.getState();
       expect(state.running).toBe(true);
@@ -41,7 +41,7 @@ describe('stateHandler', () => {
     test('returns empty task when no session', async () => {
       mockServices.session = () => ({
         getOne: () => null,
-      } as SessionService);
+      } as unknown as SessionService);
 
       const state = await handler.getState();
       expect(state.currentTask).toEqual({});

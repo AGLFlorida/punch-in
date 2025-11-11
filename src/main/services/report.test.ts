@@ -72,7 +72,12 @@ describe('ReportService', () => {
       const now = Date.now();
       
       // Create task 2 with longer session
-      const task2Insert = db.prepare('INSERT INTO task (name, project_id) VALUES (?, ?)').run('Task 2', db.prepare('SELECT id FROM project LIMIT 1').get()?.id as number);
+      // Get the project ID from the existing test data
+      const projectRow = db.prepare('SELECT id FROM project LIMIT 1').get() as { id: number } | undefined;
+      if (!projectRow) {
+        throw new Error('Test setup failed: no project found');
+      }
+      const task2Insert = db.prepare('INSERT INTO task (name, project_id) VALUES (?, ?)').run('Task 2', projectRow.id);
       const task2Id = task2Insert.lastInsertRowid as number;
 
       // Short session for task 1
