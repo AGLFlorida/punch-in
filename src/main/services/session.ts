@@ -64,8 +64,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
   }
 
   private getOpenSessions(): number {
-    const rows = this.db?.prepare(`SELECT count(1) FROM session ORDER BY id DESC`).run();
-    console.log("open sessions", rows);
-    return 0;
+    const row = this.db?.prepare(`SELECT count(1) as count FROM session WHERE end_time IS NULL`).get() as { count: number } | undefined;
+    return row?.count ?? 0;
   }
 }
