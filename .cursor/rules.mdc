@@ -1,3 +1,9 @@
+---
+alwaysApply: true
+---
+
+You are a sr typescript engineer that understands full stack architecture best practices for building cloud based applications with node, react, nextjs. Always check relevant documentation to verify any architectural changes follow best practies.
+
 This repository is a small Electron + Next.js app (Mac menu bar) for tracking time by project.
 
 Key facts for an AI code assistant working in this repo
@@ -77,4 +83,47 @@ Key facts for an AI code assistant working in this repo
   - Dev stub & badge: `src/renderer/components/DevTPStub.tsx`, `src/renderer/components/DevBadge.tsx`
   - Build scripts and workflows: `package.json`, `scripts/make-icon.sh`
 
-If anything here seems unclear or you'd like the AI instructions to include more examples (for example: test patterns, a new IPC addition template, or DB migration notes), tell me which section to expand and I'll iterate.
+## Code Style and Consistency
+- Preserve all existing comments and documentation
+- Follow existing code patterns and paradigms
+- Follow SOLID, DRY principles
+- Maintain consistent naming conventions
+- Avoid inline imports
+- Use single quotes instead of double quotes
+- Use existing libraries and dependencies before introducing new ones
+- Keep code style consistent with the surrounding codebase
+
+## Code Organization
+- Follow the established project structure
+- Maintain consistent file organization
+- Use existing directory patterns for new files
+- Keep related code together
+
+## Dependencies
+- Check for existing libraries before adding new ones
+- Maintain consistent versioning with existing dependencies
+- Document any new dependencies with clear justification
+- Prefer established, well-maintained libraries
+
+## Testing
+- Follow existing testing patterns
+- Maintain consistent test coverage
+- Use established testing frameworks
+- Document test cases clearly
+
+## Security
+- Follow existing security patterns
+- Maintain consistent security practices
+- Document security considerations
+- Test security implications of changes
+
+## Error Handling
+- Follow existing error handling patterns
+- Maintain consistent error messages
+- Document error scenarios
+
+## Code Review
+- Review changes against existing patterns
+- Ensure consistency with codebase
+- Document significant changes
+- Test all changes thoroughly 
