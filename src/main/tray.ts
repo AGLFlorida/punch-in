@@ -1,20 +1,25 @@
 import { Tray, Menu, nativeImage, app } from 'electron';
 import path from 'node:path';
+import { ServiceManager } from './services/manager';
 
-//import { ServiceManager } from './services/manager';
-//const services = ServiceManager.getInstance();
+const services = ServiceManager.getInstance();
 
 let tray: Tray | null = null;
 let timer: NodeJS.Timeout | null = null;
 let trayIcon: Electron.NativeImage | null = null;
 
-// function format(ms: number) {
-//   const s = Math.max(0, Math.floor(ms / 1000));
-//   const h = String(Math.floor(s / 3600)).padStart(2, '0');
-//   const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-//   const sec = String(s % 60).padStart(2, '0');
-//   return `${h}:${m}:${sec}`;
-// }
+// Cache for session data to avoid constant DB queries
+let cachedSession: { taskName: string; startTime: number } | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_TTL = 5000; // Cache for 5 seconds
+
+function format(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = String(Math.floor(s / 3600)).padStart(2, '0');
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const sec = String(s % 60).padStart(2, '0');
+  return `${h}:${m}:${sec}`;
+}
 
 export function setupTray() {
   if (tray) return tray;
@@ -57,23 +62,89 @@ export function setupTray() {
 export function updateTray() {
   if (!tray) return;
 
-  //const open = services.session()?.getOne(); TODO this runs constantly (on tick), need to fix that so we aren't slamming the DB
-  const open = false;
-  if (!open) {
+  const sessionSvc = services.session();
+  const taskSvc = services.task();
+  
+  if (!sessionSvc || !taskSvc) {
     tray.setTitle('Idle');
     tray.setToolTip('Punch In — Idle');
-    // Always use the pre-resized tray icon so we don't accidentally set a large
-    // image (for example a full-size PNG or .icns entry) that makes the menu
-    // bar icon huge.
     if (trayIcon) {
       try { tray.setImage(trayIcon); } catch { /* IGNORE */ }
     }
     return;
   }
-  //const elapsed = Date.now() //- open.start;
-  const title = "foo" //`${format(elapsed)} — ${open.project}`;
-  tray.setTitle(title);
-  tray.setToolTip(`Punch In — ${title}`);
+
+  // Check cache first to avoid constant DB queries
+  const now = Date.now();
+  let sessionData = cachedSession;
+  
+  if (!sessionData || (now - cacheTimestamp) > CACHE_TTL) {
+    // Refresh cache
+    const openSession = sessionSvc.getOne();
+    
+    if (!openSession) {
+      cachedSession = null;
+      cacheTimestamp = now;
+      tray.setTitle('Idle');
+      tray.setToolTip('Punch In — Idle');
+      if (trayIcon) {
+        try { tray.setImage(trayIcon); } catch { /* IGNORE */ }
+      }
+      return;
+    }
+
+    // Get task_id from the session row
+    const sessionRow = openSession as unknown as { task_id: number; start_time: number };
+    const taskId = sessionRow.task_id;
+    
+    // Get the task details
+    const tasks = taskSvc.get();
+    const task = tasks.find(t => t.id === taskId);
+    
+    if (task) {
+      const startTime = typeof sessionRow.start_time === 'number' 
+        ? sessionRow.start_time 
+        : new Date(sessionRow.start_time).getTime();
+      
+      cachedSession = {
+        taskName: task.name,
+        startTime: startTime
+      };
+      cacheTimestamp = now;
+      sessionData = cachedSession;
+    } else {
+      cachedSession = null;
+      cacheTimestamp = now;
+      tray.setTitle('Idle');
+      tray.setToolTip('Punch In — Idle');
+      if (trayIcon) {
+        try { tray.setImage(trayIcon); } catch { /* IGNORE */ }
+      }
+      return;
+    }
+  }
+
+  // Calculate elapsed time and format
+  if (sessionData) {
+    const elapsed = now - sessionData.startTime;
+    const formattedTime = format(elapsed);
+    const title = `${formattedTime} — ${sessionData.taskName}`;
+    tray.setTitle(title);
+    tray.setToolTip(`Punch In — ${title}`);
+  } else {
+    tray.setTitle('Idle');
+    tray.setToolTip('Punch In — Idle');
+    if (trayIcon) {
+      try { tray.setImage(trayIcon); } catch { /* IGNORE */ }
+    }
+  }
+}
+
+export function invalidateTrayCache() {
+  cachedSession = null;
+  cacheTimestamp = 0;
+  // Immediately update the tray
+  updateTray();
 }
 
 export function cleanupTray() {
