@@ -1,8 +1,0 @@
-* Duplicate companies can still be added if you hit save twice before navigating away (might only be on first run?)
-* Alerts / notifications should happen in app instead of at the system level.
-* User can't add a company and a project for that company at the same time (i.e. the company must already exist in the DB), even though you can do it in the UI.
-* Missing all sorts of unit, integration, and smoke tests.
-* During build (npm run dev), we get the following warning: "The Next.js plugin was not detected in your ESLint configuration. [...]"
-* We need to be able to query by report dates and filter by company instead of just showing everything all of the time.
-* We need to introduce better DB schema versioning and migration strageties / support.
-* Migrate to electron-builder and electron-updater, remove electron packager.
