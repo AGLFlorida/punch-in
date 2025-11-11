@@ -82,7 +82,11 @@ describe('elapsedNow', () => {
     };
     const elapsed = elapsedNow(state);
     expect(elapsed).toBeGreaterThan(0);
-    expect(elapsed).toBe(Date.now() - pastTime);
+    // Use tolerance check to avoid timing issues between Date.now() calls
+    // Allow up to 10ms difference to account for execution time
+    const expected = Date.now() - pastTime;
+    expect(elapsed).toBeGreaterThanOrEqual(expected - 10);
+    expect(elapsed).toBeLessThanOrEqual(expected + 10);
   });
 });
 
