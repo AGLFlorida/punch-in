@@ -99,19 +99,29 @@ describe('SessionService', () => {
     test('closes existing open session before starting new one', () => {
       const now = Date.now();
       // Create an open session
-      db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, now - 1000);
+      const firstSessionInsert = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, now - 1000);
+      const firstSessionId = firstSessionInsert.lastInsertRowid as number;
 
-      // Start a new session
-      // Note: getOpenSessions() has a bug - it always returns 0, so the defensive close doesn't work
-      // This test verifies current behavior: multiple open sessions can exist
+      // Start a new session - this should close the existing open session
       service.start(testTaskId);
 
       const allSessions = service.get();
-      const openSessions = allSessions.filter(s => !s.end_time);
-      // Currently, the bug means old sessions aren't closed, so we verify the new one was created
-      expect(openSessions.length).toBeGreaterThanOrEqual(1);
-      // The most recent session should be open
-      expect(openSessions[0]?.id).toBeDefined();
+      const openSessions = allSessions.filter(s => {
+        const rowData = s as unknown as { end_time: number | null };
+        return !rowData.end_time;
+      });
+      
+      // Should only have one open session (the new one)
+      expect(openSessions).toHaveLength(1);
+      
+      // Verify the old session was closed (has end_time)
+      const firstSession = allSessions.find(s => {
+        const rowData = s as unknown as { id: number };
+        return rowData.id === firstSessionId;
+      });
+      expect(firstSession).toBeDefined();
+      const firstSessionData = firstSession as unknown as { end_time: number | null };
+      expect(firstSessionData.end_time).not.toBeNull();
     });
 
     test('returns false when insert fails', () => {
