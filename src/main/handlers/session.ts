@@ -2,6 +2,21 @@ import type { ServiceManager } from "../services/manager";
 import type { IpcMainInvokeEvent } from 'electron';
 import { TaskModel } from "../services/task";
 
+// Lazy import to avoid issues in test environment
+function invalidateTrayCache() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { invalidateTrayCache: invalidate } = require("../tray");
+    invalidate();
+  } catch (err) {
+    // Log warnings in development to help with debugging
+    if (process.env.ENV === 'development') {
+      console.warn('Failed to invalidate tray cache:', err);
+    }
+    // Ignore if tray module is not available (e.g., in tests)
+  }
+}
+
 export const sessionHandler = (services: ServiceManager) => {
   const svc = services.session();
   const taskSvc = services.task();
@@ -35,6 +50,8 @@ export const sessionHandler = (services: ServiceManager) => {
         throw new Error(`Could not start task: ${task_id}`)
       }
     
+      // Invalidate tray cache so it updates immediately
+      invalidateTrayCache();
 
       return task_id;
     },
@@ -47,7 +64,12 @@ export const sessionHandler = (services: ServiceManager) => {
         throw new Error("Session service not initialized.")
       }
 
-      return svc.stop();
+      const result = svc.stop();
+      
+      // Invalidate tray cache so it updates immediately
+      invalidateTrayCache();
+
+      return result;
     },
     get: () => {
       const rows = services.session()?.get();

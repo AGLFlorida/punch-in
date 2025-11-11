@@ -17,8 +17,16 @@ export class TaskService implements ServiceInterface<TaskModel> {
     }
   }
 
-  getOne(): TaskModel {
-    return {} as TaskModel;
+  getOne(id?: number): TaskModel {
+    if (!id) {
+      return {} as TaskModel;
+    }
+    const row = this.db?.prepare(`
+      SELECT id, name, project_id, is_active, deleted_at, updated_at, created_at 
+      FROM task 
+      WHERE id = ? AND is_active = 1
+    `).get(id) as TaskModel | undefined;
+    return row ?? ({} as TaskModel);
   }
 
   get(): TaskModel[] {

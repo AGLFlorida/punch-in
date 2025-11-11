@@ -9,6 +9,16 @@ export interface SessionModel extends BaseModel {
   end_time?: Date;
 }
 
+/**
+ * Raw session row as returned from the database
+ */
+export interface SessionRow {
+  id: number;
+  task_id: number;
+  start_time: number; // epoch milliseconds
+  end_time: number | null;
+}
+
 export class SessionService implements ServiceInterface<SessionModel> {
     db: PunchinDatabase | null = null;
   
@@ -18,8 +28,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
       }
     }
   
-  getOne(id?: number): SessionModel {
-    console.log("ID", id);
+  getOne(): SessionModel {
     const row = this.db?.prepare(`
       SELECT id, task_id, start_time, end_time 
       -- FROM v_session
@@ -28,6 +37,19 @@ export class SessionService implements ServiceInterface<SessionModel> {
       ORDER BY id DESC LIMIT 1
     `).get();
     return (row as SessionModel) ?? null;
+  }
+
+  /**
+   * Get the raw session row data (for internal use)
+   */
+  getOneRow(): SessionRow | null {
+    const row = this.db?.prepare(`
+      SELECT id, task_id, start_time, end_time 
+      FROM session
+      WHERE end_time IS NULL
+      ORDER BY id DESC LIMIT 1
+    `).get() as SessionRow | undefined;
+    return row ?? null;
   }
 
   set(data: SessionModel[]) { console.log("TO BE IMPLEMENTED,", data); return false; }

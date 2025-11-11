@@ -5,6 +5,7 @@
   "main": "dist/main/index.js",
   "scripts": {
     "build": "npm run clean:dist && npm run build:ui && tsc && npm run copy:assets",
+    "prebuild": "npm run lint && npm test",
     "start": "npm run build && electron .",
     "build:ui": "next build src/renderer",
     "export:ui": "next export src/renderer",

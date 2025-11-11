@@ -33,20 +33,16 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --progress=false
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Run tests
-        run: npm test -- --runInBand
+      - name: Rebuild native modules for Node.js
+        run: npm rebuild better-sqlite3
 
       - name: Build (renderer + main)
         run: npm run build
 
-      - name: Upload build logs (debug)
-        if: false
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            npm-debug.log
-            build.log
+      # - name: Upload build logs (debug)
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: build-logs
+      #     path: |
+      #       npm-debug.log
+      #       build.log

@@ -48,13 +48,32 @@ export default function TimerPage() {
         const p = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
   setProjects(p);
   setTasks(t);
-  // Do not preselect any option after loading; leave selects empty
-  setSelectedTaskId('');
-  setSelectedProjectId('');
         
         p.forEach((p: ProjectModel) => {
           if (p.id && projectNames.current) projectNames.current[p.id] = p.name;
         })
+
+        // Restore timer state if a session is running
+        if (typeof window !== 'undefined' && window.tp?.getState) {
+          const state = await window.tp.getState();
+          if (state.running && state.startTs && state.currentTask?.id) {
+            setIsRunning(true);
+            setStartTs(state.startTs);
+            setCurrentTask(state.currentTask);
+            setSelectedTaskId(state.currentTask.id);
+            if (state.currentTask.project_id) {
+              setSelectedProjectId(state.currentTask.project_id);
+            }
+          } else {
+            // Do not preselect any option after loading; leave selects empty
+            setSelectedTaskId('');
+            setSelectedProjectId('');
+          }
+        } else {
+          // Do not preselect any option after loading; leave selects empty
+          setSelectedTaskId('');
+          setSelectedProjectId('');
+        }
        
       } catch (e) {
         console.info("Error loading tasks and projects:", e)
