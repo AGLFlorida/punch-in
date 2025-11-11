@@ -2,6 +2,13 @@ import { ServiceManager } from "../services/manager";
 import { TaskModel } from "../services/task";
 import { PunchInState } from "./types";
 
+/**
+ * Convert start_time to epoch milliseconds
+ */
+function getStartTimeAsMs(startTime: number | Date): number {
+  return typeof startTime === 'number' ? startTime : new Date(startTime).getTime();
+}
+
 export const stateHandler = (services: ServiceManager) => {
   return {
     getState: async (): Promise<PunchInState> => {
@@ -16,9 +23,9 @@ export const stateHandler = (services: ServiceManager) => {
         };
       }
 
-      const openSession = sessionSvc.getOne();
+      const sessionRow = sessionSvc.getOneRow();
       
-      if (!openSession) {
+      if (!sessionRow) {
         return {
           running: false,
           startTs: null,
@@ -26,18 +33,11 @@ export const stateHandler = (services: ServiceManager) => {
         };
       }
 
-      // Get task_id from the session row (it's stored as task_id in the raw row)
-      const sessionRow = openSession as unknown as { task_id: number; start_time: number };
-      const taskId = sessionRow.task_id;
-      
-      // Get the task details
-      const tasks = taskSvc.get();
-      const currentTask = tasks.find(t => t.id === taskId) || {} as TaskModel;
+      // Get the task details using optimized lookup
+      const currentTask = taskSvc.getOne(sessionRow.task_id);
 
       // Convert start_time to epoch milliseconds
-      const startTs = typeof sessionRow.start_time === 'number' 
-        ? sessionRow.start_time 
-        : new Date(sessionRow.start_time).getTime();
+      const startTs = getStartTimeAsMs(sessionRow.start_time);
 
       return {
         running: true,

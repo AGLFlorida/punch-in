@@ -8,7 +8,11 @@ function invalidateTrayCache() {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { invalidateTrayCache: invalidate } = require("../tray");
     invalidate();
-  } catch {
+  } catch (err) {
+    // Log warnings in development to help with debugging
+    if (process.env.ENV === 'development') {
+      console.warn('Failed to invalidate tray cache:', err);
+    }
     // Ignore if tray module is not available (e.g., in tests)
   }
 }

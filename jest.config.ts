@@ -24,12 +24,12 @@ const config: Config = {
       testMatch: ['**/src/renderer/**/*.test.tsx'],
       moduleFileExtensions: ['ts', 'tsx', 'js', 'json'],
       setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
-      globals: {
-        'ts-jest': {
+      transform: {
+        '^.+\\.tsx?$': ['ts-jest', {
           tsconfig: {
             jsx: 'react-jsx',
           },
-        },
+        }],
       },
     },
   ],
