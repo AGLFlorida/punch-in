@@ -320,7 +320,7 @@ export default function TimerPage() {
           </section>}
 
         <div className="row">
-          <button onClick={onStart} disabled={!allowStart}>Start</button>
+          <button onClick={onStart} disabled={!allowStart || isRunning}>Start</button>
           <button className="danger" onClick={onStop} disabled={!isRunning}>Stop</button>
         </div>
 
