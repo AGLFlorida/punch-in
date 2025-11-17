@@ -17,10 +17,20 @@ declare global {
     getCompanyList(): Promise<CompanyModel[]>;
     removeCompany(id: number): Promise<boolean>;
     getTasks(): Promise<TaskModel[]>;
-    getReport(): Promise<ReportModel[]>;
+    getReport(includeDeleted?: boolean): Promise<ReportModel[]>;
 
     // reporting
     getSessions(): Promise<SessionModel[]>;
+    getAllSessionsWithDetails(): Promise<Array<{
+      id: number;
+      company_name: string;
+      project_name: string;
+      task_name: string;
+      start_time: number;
+      end_time: number | null;
+      duration_ms: number;
+    }>>;
+    removeSession(id: number): Promise<boolean>;
 
     // events
     onTick(cb: () => void): () => void;

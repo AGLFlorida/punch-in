@@ -2,6 +2,7 @@ import { reportHandler } from './report';
 import { createMockServiceManager } from '../../__tests__/helpers/mock-services';
 import { ReportService } from '../services/report';
 import type { ReportModel } from '../services/report';
+import type { IpcMainInvokeEvent } from 'electron';
 
 describe('reportHandler', () => {
   let mockServices: ReturnType<typeof createMockServiceManager>;
@@ -29,8 +30,10 @@ describe('reportHandler', () => {
   });
 
   describe('get', () => {
+    const mockEvent = {} as IpcMainInvokeEvent;
+
     test('returns reports from service', () => {
-      const result = handler.get();
+      const result = handler.get(mockEvent);
       expect(result).toHaveLength(1);
       expect(result[0].company_name).toBe('Company 1');
       expect(result[0].total_seconds).toBe(3600);
@@ -38,7 +41,7 @@ describe('reportHandler', () => {
 
     test('returns empty array when service returns null', () => {
       mockReportService.get = () => null as unknown as ReportModel[];
-      const result = handler.get();
+      const result = handler.get(mockEvent);
       expect(result).toEqual([]);
     });
 
@@ -47,7 +50,7 @@ describe('reportHandler', () => {
         report: () => null as unknown as ReportService,
       });
       const nullHandler = reportHandler(nullServices);
-      expect(() => nullHandler.get()).toThrow('Report service not initialized.');
+      expect(() => nullHandler.get(mockEvent)).toThrow('Report service not initialized.');
     });
   });
 });

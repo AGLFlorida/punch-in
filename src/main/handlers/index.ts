@@ -38,6 +38,8 @@ ipcMain.handle('tp:removeCompany', ch.delCompany);
 ipcMain.handle('tp:start', sessh.start);
 ipcMain.handle('tp:stop',  sessh.stop);
 ipcMain.handle('tp:getSessions', sessh.get);
+ipcMain.handle('tp:getAllSessionsWithDetails', sessh.getAllWithDetails);
+ipcMain.handle('tp:removeSession', sessh.removeSession);
 
 // report handlers
 ipcMain.handle('tp:getReport', r.get)

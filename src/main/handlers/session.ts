@@ -9,11 +9,11 @@ function invalidateTrayCache() {
     const { invalidateTrayCache: invalidate } = require("../tray");
     invalidate();
   } catch (err) {
-    // Log warnings in development to help with debugging
-    if (process.env.ENV === 'development') {
+    // Silently ignore if tray module is not available (e.g., in tests)
+    // Only log warnings in development when not in test environment
+    if (process.env.ENV === 'development' && process.env.NODE_ENV !== 'test') {
       console.warn('Failed to invalidate tray cache:', err);
     }
-    // Ignore if tray module is not available (e.g., in tests)
   }
 }
 
@@ -83,6 +83,25 @@ export const sessionHandler = (services: ServiceManager) => {
       //   ...r,
       //   elapsedMs: (r.endTime ?? now) - r.startTime
       // }));
+    },
+    getAllWithDetails: () => {
+      return services.session()?.getAllWithDetails() ?? [];
+    },
+    removeSession: (_e: IpcMainInvokeEvent, id: number): boolean => {
+      if (!id) {
+        throw new Error("Missing session id.");
+      }
+
+      if (!svc) {
+        throw new Error("Session service not initialized.");
+      }
+
+      const result = svc.remove(id);
+      
+      // Invalidate tray cache so it updates immediately
+      invalidateTrayCache();
+
+      return result;
     }
   }
 }

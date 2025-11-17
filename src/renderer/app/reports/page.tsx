@@ -15,11 +15,13 @@ export default function ReportsPage() {
   const [sortColumn, setSortColumn] = useState<SortColumn>('day');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [wtdMode, setWtdMode] = useState<boolean>(false);
+  const [showDeleted, setShowDeleted] = useState<boolean>(false);
 
   const load = async () => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getReport) ? await (window as any).tp.getReport() : [];
+      const data = (typeof window !== 'undefined' && window.tp?.getReport) 
+        ? await window.tp.getReport(showDeleted) 
+        : [];
       setRows(data);
       //console.log(data);
       
@@ -35,7 +37,7 @@ export default function ReportsPage() {
     load();
     //console.log("CALLED LOAD")
     //window.tp.onSessionsUpdated(load);
-  }, []);
+  }, [showDeleted]);
 
   // Filter and sort rows
   const filteredAndSortedRows = useMemo(() => {
@@ -53,7 +55,7 @@ export default function ReportsPage() {
 
     // If WTD mode, aggregate by project and week
     if (wtdMode) {
-      const weeklyData = new Map<string, ReportModel & { week_range?: string }>();
+      const weeklyData = new Map<string, ReportModel & { week_range?: string; week_start_date?: string }>();
 
       filtered.forEach(r => {
         if (!r?.day || !r?.project_name) return;
@@ -70,6 +72,7 @@ export default function ReportsPage() {
         
         const weekKey = `${r.company_name}-${r.project_name}-${monday.toISOString().split('T')[0]}`;
         const weekRange = `${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${sunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        const weekStartDate = monday.toISOString().split('T')[0]; // Store Monday date for sorting
         
         if (weeklyData.has(weekKey)) {
           weeklyData.get(weekKey)!.total_seconds += r.total_seconds || 0;
@@ -77,8 +80,9 @@ export default function ReportsPage() {
           weeklyData.set(weekKey, {
             ...r,
             task_name: '', // Not shown in WTD mode
-            day: weekRange, // Replace day with week range
+            day: weekRange, // Replace day with week range for display
             week_range: weekRange,
+            week_start_date: weekStartDate, // Store Monday date for sorting
             total_seconds: r.total_seconds || 0
           });
         }
@@ -95,6 +99,16 @@ export default function ReportsPage() {
       // Handle null/undefined
       if (aVal === null || aVal === undefined) return 1;
       if (bVal === null || bVal === undefined) return -1;
+
+      // Special handling for day column in WTD mode - use week_start_date for chronological sorting
+      if (sortColumn === 'day' && wtdMode) {
+        const aWeekStart = (a as ReportModel & { week_start_date?: string }).week_start_date;
+        const bWeekStart = (b as ReportModel & { week_start_date?: string }).week_start_date;
+        if (aWeekStart && bWeekStart) {
+          aVal = aWeekStart;
+          bVal = bWeekStart;
+        }
+      }
 
       // Convert to comparable values
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
@@ -142,7 +156,17 @@ export default function ReportsPage() {
             WTD
           </button>
 
-          <label style={{ marginBottom: 0, marginRight: 8 }}>Company:</label>
+          <label style={{ marginBottom: 0, marginRight: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={showDeleted}
+              onChange={(e) => setShowDeleted(e.target.checked)}
+              style={{ margin: 0 }}
+            />
+            Show deleted
+          </label>
+
+          <label style={{ marginBottom: 0, marginLeft: 16, marginRight: 8 }}>Company:</label>
           <select
             value={selectedCompany}
             onChange={(e) => setSelectedCompany(e.target.value)}
@@ -188,7 +212,14 @@ export default function ReportsPage() {
           </thead>
           <tbody>
             {filteredAndSortedRows.map((r: ReportModel, idx: number) => (
-              <tr key={idx}>
+              <tr 
+                key={idx}
+                style={{
+                  backgroundColor: r?.is_deleted ? '#f3f4f6' : 'transparent',
+                  color: r?.is_deleted ? '#dc2626' : 'inherit',
+                  opacity: r?.is_deleted ? 0.7 : 1,
+                }}
+              >
                 <td>{r?.company_name}</td>
                 <td>{r?.project_name}</td>
                 {!wtdMode && <td>{r?.task_name}</td>}
