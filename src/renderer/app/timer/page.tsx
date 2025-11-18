@@ -10,6 +10,10 @@ type ProjectNames = {
   [key: number]: string;
 }
 
+// Constants for timer auto-stop
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const ONE_MINUTE_MS = 60 * 1000;
+
 export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | ''>('');
@@ -103,8 +107,13 @@ export default function TimerPage() {
     };
   }, []);
 
-  // Internal function to perform the actual stop operation
-  // Memoized with useCallback to avoid stale closures in useEffect
+  /**
+   * Performs the actual stop operation for the timer.
+   * Updates UI state only after successful stop, or when no sessions exist.
+   * 
+   * @param showError - Whether to show error notifications to the user (default: true)
+   * @returns Promise<boolean> - true if stop succeeded or no sessions existed, false on error
+   */
   const performStop = useCallback(async (showError: boolean = true): Promise<boolean> => {
     try {
       if (typeof window !== 'undefined' && window.tp?.stop) {
@@ -121,6 +130,7 @@ export default function TimerPage() {
         } else {
           // Stop returned false - no open sessions to close
           // This might mean the timer was already stopped, so update UI anyway
+          console.info("Stop returned false - no open sessions found, updating UI state");
           setIsRunning(false);
           setStartTs(null);
           setElapsedTs(0);
@@ -162,8 +172,6 @@ export default function TimerPage() {
         setElapsedTs(elapsed);
 
         // Check for 24-hour auto-stop (check every minute to avoid excessive checks)
-        const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
-        const ONE_MINUTE_MS = 60 * 1000;
         const timeSinceLastCheck = now - lastAutoStopCheck.current;
         
         if (elapsed >= TWENTY_FOUR_HOURS_MS && timeSinceLastCheck >= ONE_MINUTE_MS) {
@@ -183,7 +191,6 @@ export default function TimerPage() {
       lastAutoStopCheck.current = Date.now();
 
       // Check immediately if already past 24 hours
-      const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
       if (initialElapsed >= TWENTY_FOUR_HOURS_MS) {
         console.warn("Timer has been running for 24+ hours, auto-stopping");
         // Don't show error notification for auto-stop (silent failure is acceptable)

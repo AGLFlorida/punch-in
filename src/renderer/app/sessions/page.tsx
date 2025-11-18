@@ -4,7 +4,13 @@ import { useEffect, useState, useMemo } from 'react';
 import { msToHMS } from '@/lib/time';
 import { TrashIcon } from '@/components/CustomImage';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { NotifyBox } from '@/components/Notify';
 
+/**
+ * Session detail model for the Sessions page UI.
+ * This is a flattened view of session data with company/project/task names included.
+ * Note: This differs from SessionModel in services which uses nested task objects.
+ */
 type SessionDetailModel = {
   id: number;
   company_name: string;
@@ -30,6 +36,7 @@ export default function SessionsPage() {
     sessionId: null,
     sessionInfo: '',
   });
+  const [error, setError] = useState<{ title: string; body?: string } | null>(null);
 
   const load = async () => {
     try {
@@ -112,12 +119,23 @@ export default function SessionsPage() {
 
     try {
       if (typeof window !== 'undefined' && window.tp?.removeSession) {
-        await window.tp.removeSession(confirmDialog.sessionId);
-        setConfirmDialog({ isOpen: false, sessionId: null, sessionInfo: '' });
-        await load(); // Refresh the list
+        const success = await window.tp.removeSession(confirmDialog.sessionId);
+        if (success) {
+          setConfirmDialog({ isOpen: false, sessionId: null, sessionInfo: '' });
+          await load(); // Refresh the list
+        } else {
+          setError({
+            title: "Failed to Delete Session",
+            body: "The session could not be deleted. Please try again."
+          });
+        }
       }
     } catch (e) {
       console.error('Failed to delete session:', e);
+      setError({
+        title: "Failed to Delete Session",
+        body: e instanceof Error ? e.message : "An error occurred while deleting the session. Please try again."
+      });
     }
   };
 
@@ -142,6 +160,12 @@ export default function SessionsPage() {
 
   return (
     <>
+      {error && (
+        <NotifyBox 
+          opts={error} 
+          close={() => setError(null)} 
+        />
+      )}
       <ConfirmDialog
         title="Delete Session"
         message={`Are you sure you want to delete this session?\n\n${confirmDialog.sessionInfo}`}

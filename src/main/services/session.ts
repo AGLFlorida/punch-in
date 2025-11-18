@@ -86,7 +86,11 @@ export class SessionService implements ServiceInterface<SessionModel> {
   }
 
   /**
-   * Get all sessions with full company/project/task details
+   * Get all active sessions with full company/project/task details.
+   * Returns a flattened view with company_name, project_name, and task_name included.
+   * Calculates duration_ms for each session (current time for running sessions).
+   * 
+   * @returns Array of session detail objects with company/project/task names and calculated duration
    */
   getAllWithDetails(): Array<{
     id: number;
@@ -131,7 +135,11 @@ export class SessionService implements ServiceInterface<SessionModel> {
   }
 
   /**
-   * Soft delete a session by setting is_active = 0
+   * Soft delete a session by setting is_active = 0.
+   * This marks the session as deleted but preserves the data in the database.
+   * 
+   * @param id - The session ID to delete
+   * @returns true if the session was successfully deleted, false otherwise
    */
   remove(id: number): boolean {
     if (!id) {
