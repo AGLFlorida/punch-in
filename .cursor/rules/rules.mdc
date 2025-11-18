@@ -116,6 +116,7 @@ Key facts for an AI code assistant working in this repo
 - Maintain consistent security practices
 - Document security considerations
 - Test security implications of changes
+- reference OWASP Top 10 when making changes or peer reviews
 
 ## Error Handling
 - Follow existing error handling patterns
