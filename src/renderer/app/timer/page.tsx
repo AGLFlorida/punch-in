@@ -1,13 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { fmtWallClock, msToHMS } from '@/lib/time';
 import { TaskModel } from 'src/main/services/task';
 import { ProjectModel } from 'src/main/services/project';
+import { NotifyBox } from '@/components/Notify';
 
 type ProjectNames = {
   [key: number]: string;
 }
+
+// Constants for timer auto-stop
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const ONE_MINUTE_MS = 60 * 1000;
 
 export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
@@ -21,6 +26,8 @@ export default function TimerPage() {
   const elapsedInterval = useRef<NodeJS.Timeout | null>(null);
   const [elapsedTs, setElapsedTs] = useState<number>(0);
   const [wallClock, setWallClock] = useState<string>('');
+  const [error, setError] = useState<{ title: string; body?: string } | null>(null);
+  const lastAutoStopCheck = useRef<number>(0);
   
   const projectNames = useRef<ProjectNames>({});
   const currentTask = useRef<TaskModel>(null);
@@ -100,6 +107,56 @@ export default function TimerPage() {
     };
   }, []);
 
+  /**
+   * Performs the actual stop operation for the timer.
+   * Updates UI state only after successful stop, or when no sessions exist.
+   * 
+   * @param showError - Whether to show error notifications to the user (default: true)
+   * @returns Promise<boolean> - true if stop succeeded or no sessions existed, false on error
+   */
+  const performStop = useCallback(async (showError: boolean = true): Promise<boolean> => {
+    try {
+      if (typeof window !== 'undefined' && window.tp?.stop) {
+        // Note: stop() closes ALL open sessions, so we don't need currentTask.current
+        // Pass an empty task object since the handler requires a TaskModel but doesn't use it
+        const stopped: boolean = await window.tp.stop({} as TaskModel);
+        
+        if (stopped) {
+          // Only update UI state after successful stop
+          setIsRunning(false);
+          setStartTs(null);
+          setElapsedTs(0);
+          return true;
+        } else {
+          // Stop returned false - no open sessions to close
+          // This might mean the timer was already stopped, so update UI anyway
+          console.info("Stop returned false - no open sessions found, updating UI state");
+          setIsRunning(false);
+          setStartTs(null);
+          setElapsedTs(0);
+          return true;
+        }
+      } else {
+        // No IPC available - can't actually stop, but update UI optimistically
+        setIsRunning(false);
+        setStartTs(null);
+        setElapsedTs(0);
+        return true;
+      }
+    } catch (e) {
+      // Stop failed - keep timer running and show error
+      console.error("Failed to stop timer:", e);
+      if (showError) {
+        setError({
+          title: "Failed to Stop Timer",
+          body: e instanceof Error ? e.message : "An error occurred while stopping the timer. Please try again."
+        });
+      }
+      // Don't update isRunning - keep it as true since stop failed
+      return false;
+    }
+  }, []); // Empty deps - only uses stable state setters
+
   // Separate effect for elapsed time when running
   useEffect(() => {
     if (isRunning && startTs !== null) {
@@ -110,11 +167,37 @@ export default function TimerPage() {
 
       // Update elapsed time every second
       elapsedInterval.current = setInterval(() => {
-        setElapsedTs(Date.now() - startTs);
+        const now = Date.now();
+        const elapsed = now - startTs;
+        setElapsedTs(elapsed);
+
+        // Check for 24-hour auto-stop (check every minute to avoid excessive checks)
+        const timeSinceLastCheck = now - lastAutoStopCheck.current;
+        
+        if (elapsed >= TWENTY_FOUR_HOURS_MS && timeSinceLastCheck >= ONE_MINUTE_MS) {
+          lastAutoStopCheck.current = now;
+          // Auto-stop timer that's been running for 24+ hours
+          // Don't show error notification for auto-stop (silent failure is acceptable)
+          console.warn("Timer has been running for 24+ hours, auto-stopping");
+          performStop(false).catch(err => {
+            console.error("Failed to auto-stop timer:", err);
+          });
+        }
       }, 1000);
 
       // Initial update
-      setElapsedTs(Date.now() - startTs);
+      const initialElapsed = Date.now() - startTs;
+      setElapsedTs(initialElapsed);
+      lastAutoStopCheck.current = Date.now();
+
+      // Check immediately if already past 24 hours
+      if (initialElapsed >= TWENTY_FOUR_HOURS_MS) {
+        console.warn("Timer has been running for 24+ hours, auto-stopping");
+        // Don't show error notification for auto-stop (silent failure is acceptable)
+        performStop(false).catch(err => {
+          console.error("Failed to auto-stop timer:", err);
+        });
+      }
     } else {
       if (elapsedInterval.current) {
         clearInterval(elapsedInterval.current);
@@ -122,6 +205,7 @@ export default function TimerPage() {
       }
       if (!isRunning) {
         setElapsedTs(0);
+        lastAutoStopCheck.current = 0;
       }
     }
 
@@ -131,7 +215,7 @@ export default function TimerPage() {
         elapsedInterval.current = null;
       }
     };
-  }, [isRunning, startTs]);
+  }, [isRunning, startTs, performStop]);
 
   const onStart = async () => {
     // For new tasks, ensure we use the selected project and task name
@@ -178,20 +262,7 @@ export default function TimerPage() {
   };
 
   const onStop = async () => {
-    setIsRunning(false);
-    if (!currentTask.current || !currentTask.current?.project_id || (!taskName && newTask)) {
-      console.error("Could not stop undefined task:", JSON.stringify(currentTask.current));
-      return;
-    }
-    
-     
-    //const stopped: boolean = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.stop) ? await (window as any).tp.stop(currentTask.current) : false;
-    //console.info(`Session ended: (${currentTask.current.id}) ${stopped}`);
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.stop) {
-      await window.tp.stop(currentTask.current);
-    }
+    await performStop(true);
   };
 
   const getTaskById = (id: number): TaskModel => {
@@ -267,6 +338,12 @@ export default function TimerPage() {
 
   return (
     <>
+      {error && (
+        <NotifyBox 
+          opts={error} 
+          close={() => setError(null)} 
+        />
+      )}
       <div className="header">
         <h1 className="title">Timer</h1>
         <div style={{ padding: '10px 14px' }}>{mounted ? wallClock : null}</div>

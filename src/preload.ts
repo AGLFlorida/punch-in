@@ -3,7 +3,6 @@ import type { ProjectModel } from './main/services/project';
 import type { CompanyModel } from './main/services/company';
 import type { TaskModel } from './main/services/task';
 import type { SessionModel } from './main/services/session';
-import { ReportModel } from './main/services/report';
 
 contextBridge.exposeInMainWorld('tp', {
   getState: () => ipcRenderer.invoke('tp:getState'),
@@ -15,9 +14,11 @@ contextBridge.exposeInMainWorld('tp', {
   setCompanyList: (companies: CompanyModel[]) => ipcRenderer.invoke('tp:setCompanyList', companies),
   getCompanyList: (): Promise<CompanyModel[]> => ipcRenderer.invoke('tp:getCompanyList'),
   getSessions: (): Promise<SessionModel[]> => ipcRenderer.invoke('tp:getSessions'),
+  getAllSessionsWithDetails: () => ipcRenderer.invoke('tp:getAllSessionsWithDetails'),
+  removeSession: (id: number) => ipcRenderer.invoke('tp:removeSession', id),
   removeCompany: (id: number) => ipcRenderer.invoke('tp:removeCompany', id),
   getTasks: (): Promise<TaskModel[]> => ipcRenderer.invoke('tp:getTasks'),
-  getReport: (): Promise<ReportModel[]> => ipcRenderer.invoke('tp:getReport'), // TODO get by date range.
+  getReport: (includeDeleted?: boolean) => ipcRenderer.invoke('tp:getReport', includeDeleted ?? false), // TODO get by date range.
 
   onTick: (cb: () => void) => {
     const fn = () => cb();

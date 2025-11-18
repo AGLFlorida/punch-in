@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { CompanyModel } from 'src/main/services/company';
 import { ProjectModel } from 'src/main/services/project';
 import { NotifyBox } from '@/components/Notify';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';
 
 export default function ConfigurePage() {
@@ -12,6 +13,17 @@ export default function ConfigurePage() {
   const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<ProjectModel[]>([]);
   const [didSave, setDidSave] = useState<boolean>(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    type: 'company' | 'project' | null;
+    index: number | null;
+    name: string;
+  }>({
+    isOpen: false,
+    type: null,
+    index: null,
+    name: '',
+  });
 
   useEffect(() => {
     loadSelectables();
@@ -24,6 +36,16 @@ export default function ConfigurePage() {
   const updateCompany = (i: number, v: string) => {
     setCompanies((prev) => prev.map((c, idx) => (idx === i ? {name: v} : c)));
   }
+
+  const handleDeleteCompanyClick = (i: number) => {
+    const company = companies[i];
+    setConfirmDialog({
+      isOpen: true,
+      type: 'company',
+      index: i,
+      name: company.name || `Company ${i + 1}`,
+    });
+  };
 
   const removeCompany = (i: number) => {
     setDeletedCompanies((prev) => [...prev, companies[i]]);
@@ -43,10 +65,33 @@ export default function ConfigurePage() {
       } : p)));
     }
   
+  const handleDeleteProjectClick = (i: number) => {
+    const project = projects[i];
+    setConfirmDialog({
+      isOpen: true,
+      type: 'project',
+      index: i,
+      name: project.name || `Project ${i + 1}`,
+    });
+  };
+
   const removeProject = (i: number) => {
     setDeletedProjects((prev) => [...prev, projects[i]]);
     setProjects((prev) => prev.filter((_, idx) => idx !== i));
   }
+
+  const handleConfirmDelete = () => {
+    if (confirmDialog.type === 'company' && confirmDialog.index !== null) {
+      removeCompany(confirmDialog.index);
+    } else if (confirmDialog.type === 'project' && confirmDialog.index !== null) {
+      removeProject(confirmDialog.index);
+    }
+    setConfirmDialog({ isOpen: false, type: null, index: null, name: '' });
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDialog({ isOpen: false, type: null, index: null, name: '' });
+  };
 
   // (Re)load companies and projects from DB to update UI
   const loadSelectables = async () => {
@@ -97,6 +142,13 @@ export default function ConfigurePage() {
           close={() => setDidSave(false)}
         />
       )}
+      <ConfirmDialog
+        title={`Delete ${confirmDialog.type === 'company' ? 'Company' : 'Project'}`}
+        message={`Are you sure you want to delete "${confirmDialog.name}"?`}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        isOpen={confirmDialog.isOpen}
+      />
       <div className="header">
         <h1 className="title">Configure</h1>
         <button onClick={onSave}>Save</button>
@@ -117,7 +169,7 @@ export default function ConfigurePage() {
                   style={{ flex: 2, minWidth: 200 }}
                   disabled={(c.id !== undefined && c.id > 0)}
                 />
-                <button onClick={() => removeCompany(i)} disabled={companies.length <= 1} aria-label="Remove company" title="Remove company" style={{ padding: 8 }}>
+                <button onClick={() => handleDeleteCompanyClick(i)} disabled={companies.length <= 1} aria-label="Remove company" title="Remove company" style={{ padding: 8 }}>
                   <TrashIcon />
                 </button>
               </div>
@@ -152,7 +204,7 @@ export default function ConfigurePage() {
                     </option>
                   ))}
                 </select>
-                <button onClick={() => removeProject(i)} aria-label="Remove project" title="Remove project" style={{ padding: 8 }}>
+                <button onClick={() => handleDeleteProjectClick(i)} aria-label="Remove project" title="Remove project" style={{ padding: 8 }}>
                   <TrashIcon />
                 </button>
               </div>

@@ -26,6 +26,7 @@ jest.mock('./CustomImage', () => ({
   ClockIcon: () => React.createElement('svg', { 'data-testid': 'clock-icon' }),
   GearIcon: () => React.createElement('svg', { 'data-testid': 'gear-icon' }),
   ReportIcon: () => React.createElement('svg', { 'data-testid': 'report-icon' }),
+  ListIcon: () => React.createElement('svg', { 'data-testid': 'list-icon' }),
 }));
 
 describe('Sidebar', () => {
@@ -40,6 +41,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Punch In')).toBeInTheDocument();
     expect(screen.getByText('Timer')).toBeInTheDocument();
     expect(screen.getByText('Reports')).toBeInTheDocument();
+    expect(screen.getByText('Sessions')).toBeInTheDocument();
     expect(screen.getByText('Configure')).toBeInTheDocument();
     expect(screen.getByText('Test Content')).toBeInTheDocument();
   });
@@ -49,6 +51,7 @@ describe('Sidebar', () => {
 
     expect(screen.getByTestId('clock-icon')).toBeInTheDocument();
     expect(screen.getByTestId('report-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('list-icon')).toBeInTheDocument();
     expect(screen.getByTestId('gear-icon')).toBeInTheDocument();
   });
 

@@ -105,6 +105,7 @@ export function createMockDatabase(): PunchinDatabase {
         CAST(s.end_time   / 1000 AS INTEGER) AS end_s
       FROM "session" s
       WHERE s.end_time IS NOT NULL
+        AND s.is_active = 1
     ),
 
     -- one row per calendar day touched
@@ -152,9 +153,9 @@ export function createMockDatabase(): PunchinDatabase {
       SUM(CASE WHEN (s.seg_end - s.seg_start) > 0 THEN (s.seg_end - s.seg_start) ELSE 0 END) AS total_seconds,
       ROUND(SUM(CASE WHEN (s.seg_end - s.seg_start) > 0 THEN (s.seg_end - s.seg_start) ELSE 0 END) / 3600.0, 2) AS total_hours
     FROM segments s
-    JOIN task    t ON t.id = s.task_id
-    JOIN project p ON p.id = t.project_id
-    JOIN company c ON c.id = p.company_id
+    JOIN task    t ON t.id = s.task_id AND t.is_active = 1
+    JOIN project p ON p.id = t.project_id AND p.is_active = 1
+    JOIN company c ON c.id = p.company_id AND c.is_active = 1
     GROUP BY c.name, p.name, t.name, t.id, s.day
     ORDER BY c.name, p.name, t.name, s.day;
   `);

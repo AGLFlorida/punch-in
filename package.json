@@ -6,7 +6,7 @@
   "scripts": {
     "build": "npm run clean:dist && npm run build:ui && tsc && npm run copy:assets",
     "prebuild": "npm run lint && npm test",
-    "start": "npm run build && electron .",
+    "start": "npm run build && npm run rebuild:sqlite:electron && electron .",
     "build:ui": "next build src/renderer",
     "export:ui": "next export src/renderer",
     "static:ui": "npm run build:ui && npm run export:ui",
@@ -24,10 +24,8 @@
     "clean:out": "rm -rf out",
     "clean:watchman": "{ watchman watch-del \"$(pwd -P)\"; watchman watch-project \"$(pwd -P)\"; } >/dev/null 2>&1",
     "clean": "npm run -s clean:dist && npm run -s clean:next && npm run -s clean:node && npm ci -s && npm run -s clean:watchman",
-    "rebuild:sqlite": "electron-rebuild -f -w better-sqlite3",
     "rebuild:sqlite:node": "npm rebuild better-sqlite3",
     "rebuild:sqlite:electron": "electron-rebuild -f -w better-sqlite3",
-    "prestart": "npm run rebuild:sqlite:electron",
     "prepackage": "npm run rebuild:sqlite:electron",
     "build:release": "npm run rebuild:sqlite:node && npm run rebuild:sqlite:electron && npm run build && npm run package"
   },

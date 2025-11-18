@@ -161,5 +161,125 @@ describe('SessionService', () => {
       expect(openSessions).toHaveLength(0);
     });
   });
+
+  describe('getAllWithDetails', () => {
+    test('returns empty array when no sessions exist', () => {
+      const result = service.getAllWithDetails();
+      expect(result).toEqual([]);
+    });
+
+    test('returns sessions with company/project/task details', () => {
+      const now = Date.now();
+      const startTime = now - 5000;
+      const endTime = now - 1000;
+      
+      db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)').run(testTaskId, startTime, endTime);
+
+      const result = service.getAllWithDetails();
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: expect.any(Number),
+        company_name: 'Test Company',
+        project_name: 'Test Project',
+        task_name: 'Test Task',
+        start_time: startTime,
+        end_time: endTime,
+        duration_ms: endTime - startTime,
+      });
+    });
+
+    test('calculates duration for running sessions using current time', () => {
+      const now = Date.now();
+      const startTime = now - 3000;
+      
+      db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, startTime);
+
+      const result = service.getAllWithDetails();
+      expect(result).toHaveLength(1);
+      expect(result[0].end_time).toBeNull();
+      expect(result[0].duration_ms).toBeGreaterThanOrEqual(3000);
+      expect(result[0].duration_ms).toBeLessThan(4000); // Allow small margin for test execution time
+    });
+
+    test('only returns active sessions', () => {
+      const now = Date.now();
+      const activeStartTime = now - 5000;
+      const inactiveStartTime = now - 4000;
+      
+      // Create active session
+      const activeSessionId = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, activeStartTime, now - 1000).lastInsertRowid as number;
+      
+      // Create inactive (soft-deleted) session
+      db.prepare('INSERT INTO session (task_id, start_time, end_time, is_active) VALUES (?, ?, ?, ?)')
+        .run(testTaskId, inactiveStartTime, now - 2000, 0);
+
+      const result = service.getAllWithDetails();
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(activeSessionId);
+    });
+
+    test('orders sessions by id DESC', () => {
+      const now = Date.now();
+      const firstId = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, now - 5000, now - 4000).lastInsertRowid as number;
+      const secondId = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, now - 3000, now - 2000).lastInsertRowid as number;
+
+      const result = service.getAllWithDetails();
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(secondId);
+      expect(result[1].id).toBe(firstId);
+    });
+  });
+
+  describe('remove', () => {
+    test('soft deletes session by setting is_active = 0', () => {
+      const now = Date.now();
+      const sessionId = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, now - 5000, now - 1000).lastInsertRowid as number;
+
+      const result = service.remove(sessionId);
+      expect(result).toBe(true);
+
+      // Verify session is soft-deleted
+      const deletedSession = db.prepare('SELECT is_active FROM session WHERE id = ?').get(sessionId) as { is_active: number } | undefined;
+      expect(deletedSession?.is_active).toBe(0);
+
+      // Verify getAllWithDetails doesn't return it
+      const allDetails = service.getAllWithDetails();
+      expect(allDetails.find(s => s.id === sessionId)).toBeUndefined();
+    });
+
+    test('returns false when session id is missing', () => {
+      const result = service.remove(0);
+      expect(result).toBe(false);
+    });
+
+    test('returns false when session does not exist', () => {
+      const result = service.remove(99999);
+      expect(result).toBe(false);
+    });
+
+    test('preserves session data after soft delete', () => {
+      const now = Date.now();
+      const startTime = now - 5000;
+      const endTime = now - 1000;
+      const sessionId = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, startTime, endTime).lastInsertRowid as number;
+
+      service.remove(sessionId);
+
+      // Verify data is preserved
+      const session = db.prepare('SELECT task_id, start_time, end_time FROM session WHERE id = ?').get(sessionId) as {
+        task_id: number;
+        start_time: number;
+        end_time: number;
+      } | undefined;
+      expect(session?.task_id).toBe(testTaskId);
+      expect(session?.start_time).toBe(startTime);
+      expect(session?.end_time).toBe(endTime);
+    });
+  });
 });
 

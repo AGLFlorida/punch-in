@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, type PropsWithChildren } from 'react';
-import { ClockIcon, GearIcon, ReportIcon } from './CustomImage';
+import { ClockIcon, GearIcon, ReportIcon, ListIcon } from './CustomImage';
 
 type SidebarProps = PropsWithChildren<object>;
 
@@ -60,6 +60,14 @@ export default function Sidebar({ children }: SidebarProps) {
                 ''
               ) : (
                 <span>Reports</span>
+              )}
+            </Link>
+            <Link href="/sessions" className={`navBtn ${pathname.startsWith('/sessions') ? 'active' : ''}`}>
+              <ListIcon />
+              {collapsed ? (
+                ''
+              ) : (
+                <span>Sessions</span>
               )}
             </Link>
             <Link href="/configure" className={`navBtn ${pathname.startsWith('/configure') ? 'active' : ''}`}>
