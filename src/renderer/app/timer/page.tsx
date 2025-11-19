@@ -14,6 +14,10 @@ type ProjectNames = {
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const ONE_MINUTE_MS = 60 * 1000;
 
+// Fallback task ID for stop operation when currentTask is missing
+// Using -1 as a sentinel value that passes validation (!task?.id check)
+const FALLBACK_TASK_ID = -1;
+
 export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | ''>('');
@@ -117,9 +121,25 @@ export default function TimerPage() {
   const performStop = useCallback(async (showError: boolean = true): Promise<boolean> => {
     try {
       if (typeof window !== 'undefined' && window.tp?.stop) {
-        // Note: stop() closes ALL open sessions, so we don't need currentTask.current
-        // Pass an empty task object since the handler requires a TaskModel but doesn't use it
-        const stopped: boolean = await window.tp.stop({} as TaskModel);
+        // The handler requires a TaskModel with an id, even though stop() closes ALL open sessions
+        // When timer is running, currentTask.current should have a valid ID set by onStart
+        // Use currentTask.current if it exists and has an ID
+        if (!currentTask.current || !currentTask.current.id) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error("Cannot stop timer: currentTask.current is missing or has no ID", currentTask.current);
+          }
+          // Still attempt to stop with a fallback task ID (handler requires it, but service doesn't use it)
+          const fallbackTask = { id: FALLBACK_TASK_ID, name: '', project_id: -1 } as TaskModel;
+          const stopped: boolean = await window.tp.stop(fallbackTask);
+          if (stopped) {
+            setIsRunning(false);
+            setStartTs(null);
+            setElapsedTs(0);
+          }
+          return stopped;
+        }
+        
+        const stopped: boolean = await window.tp.stop(currentTask.current);
         
         if (stopped) {
           // Only update UI state after successful stop

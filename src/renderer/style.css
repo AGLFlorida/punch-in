@@ -88,6 +88,49 @@ body { color: #1f2937; background: #ffffff; }
 
 .content { padding: 16px; overflow: auto; }
 
+.coffee-link {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: #FFDD00;
+  color: #1f2937;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  border: 1px solid #d1d5db;
+  transition: background-color 0.2s;
+}
+
+.coffee-link:hover {
+  background-color: #FFE44D;
+}
+
+.about-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 32px 0;
+}
+
+.about-content {
+  text-align: center;
+  max-width: 500px;
+}
+
+.about-welcome {
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+
+.about-support {
+  margin-top: 32px;
+  margin-bottom: 16px;
+}
+
+.about-logo {
+  border-radius: 16px;
+}
+
 label { display: block; margin-bottom: 6px; font-weight: 600; }
 select, input[type="text"], textarea {
   width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;

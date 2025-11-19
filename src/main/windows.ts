@@ -1,4 +1,4 @@
-import { BrowserWindow, app, nativeImage } from 'electron';
+import { BrowserWindow, app, nativeImage, shell } from 'electron';
 import path from 'node:path';
 
 function resolveAsset(...segments: string[]) {
@@ -22,6 +22,33 @@ export async function createMainWindow() {
     },
   });
   await win.loadURL('app://-/index.html'); // served by protocol.ts
+
+  // Validate and open external URLs in the system browser instead of Electron windows
+  const isValidExternalUrl = (url: string): boolean => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  // Open external URLs in the system browser instead of Electron windows
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isValidExternalUrl(url)) {
+      shell.openExternal(url);
+      return { action: 'deny' }; // Prevent opening in Electron window
+    }
+    return { action: 'allow' }; // Allow app:// URLs to open normally
+  });
+
+  // Also handle navigation to external URLs
+  win.webContents.on('will-navigate', (event, url) => {
+    if (isValidExternalUrl(url)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
 
   // On macOS set Dock icon explicitly (works when packaged)
   if (process.platform === 'darwin' && !icon.isEmpty() && app.dock) {
