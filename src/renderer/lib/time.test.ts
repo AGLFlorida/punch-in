@@ -28,7 +28,7 @@ describe('msToHMS', () => {
     expect(msToHMS(3661_000)).toBe('01:01:01');
     expect(msToHMS(7200_000)).toBe('02:00:00');
     expect(msToHMS(3661000)).toBe('01:01:01');
-});
+  });
 
   test('handles large values', () => {
     expect(msToHMS(86400_000)).toBe('24:00:00');
