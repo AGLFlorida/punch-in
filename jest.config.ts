@@ -25,6 +25,9 @@ const config: Config = {
       testMatch: ['**/src/renderer/**/*.test.tsx'],
       moduleFileExtensions: ['ts', 'tsx', 'js', 'json'],
       setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/src/renderer/$1',
+      },
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
           tsconfig: {

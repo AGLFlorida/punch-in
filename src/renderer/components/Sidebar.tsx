@@ -67,7 +67,13 @@ export default function Sidebar({ children }: SidebarProps) {
     setCurrentPath(href);
     
     // Use Next.js router to navigate programmatically
-    router.push(href);
+    try {
+      router.push(href);
+    } catch (error) {
+      console.error('Navigation failed:', error);
+      // Reset state on navigation failure
+      hasManualClick.current = false;
+    }
   };
   
   // Determine active states - ensure only one is active at a time

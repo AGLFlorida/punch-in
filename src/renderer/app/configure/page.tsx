@@ -88,18 +88,6 @@ export default function ConfigurePage() {
   // Update hasUnsavedChanges when state changes
   useEffect(() => {
     const hasChangesFlag = hasChanges();
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Configure] hasChanges check:', {
-        hasChangesFlag,
-        companiesLength: companies.length,
-        projectsLength: projects.length,
-        deletedCompaniesLength: deletedCompanies.length,
-        deletedProjectsLength: deletedProjects.length,
-        snapshotExists: !!savedSnapshotRef.current,
-        snapshotCompaniesLength: savedSnapshotRef.current?.companies.length,
-        snapshotProjectsLength: savedSnapshotRef.current?.projects.length,
-      });
-    }
     setHasUnsavedChanges(hasChangesFlag);
   }, [companies, projects, deletedCompanies, deletedProjects]);
 
@@ -113,22 +101,12 @@ export default function ConfigurePage() {
   useEffect(() => {
     const guard = async (href?: string): Promise<boolean> => {
       // Always check the current value from ref, not the closure value
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Configure] Guard called:', {
-          href,
-          hasUnsavedChanges: hasUnsavedChangesRef.current,
-        });
-      }
-      
       if (!hasUnsavedChangesRef.current) {
         return true; // Allow navigation
       }
 
       // Block navigation and show dialog with pending navigation path
       if (href) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[Configure] Blocking navigation, showing dialog');
-        }
         setUnsavedChangesDialog({
           isOpen: true,
           pendingNavigation: href,

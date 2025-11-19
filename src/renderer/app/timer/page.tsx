@@ -253,8 +253,10 @@ export default function TimerPage() {
     } else {
       // For existing tasks, validate currentTask
       if (!currentTask.current || !currentTask.current?.project_id) {
-      console.error("Could not start undefined task:", JSON.stringify(currentTask.current));
-      return;
+        if (process.env.NODE_ENV === 'development') {
+          console.error("Could not start undefined task:", JSON.stringify(currentTask.current));
+        }
+        return;
       }
     }
 
