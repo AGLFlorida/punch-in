@@ -23,9 +23,19 @@ export async function createMainWindow() {
   });
   await win.loadURL('app://-/index.html'); // served by protocol.ts
 
+  // Validate and open external URLs in the system browser instead of Electron windows
+  const isValidExternalUrl = (url: string): boolean => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
   // Open external URLs in the system browser instead of Electron windows
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
+    if (isValidExternalUrl(url)) {
       shell.openExternal(url);
       return { action: 'deny' }; // Prevent opening in Electron window
     }
@@ -34,7 +44,7 @@ export async function createMainWindow() {
 
   // Also handle navigation to external URLs
   win.webContents.on('will-navigate', (event, url) => {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
+    if (isValidExternalUrl(url)) {
       event.preventDefault();
       shell.openExternal(url);
     }

@@ -17,8 +17,8 @@ jest.mock('next/image', () => ({
 }));
 
 jest.mock('next/link', () => {
-  return ({ children, href }: { children: React.ReactNode; href: string }) => {
-    return React.createElement('a', { href }, children);
+  return ({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: unknown }) => {
+    return React.createElement('a', { href, ...props }, children);
   };
 });
 
@@ -134,6 +134,57 @@ describe('Sidebar', () => {
       link.textContent === 'Reports'
     );
     expect(navLinks[0].textContent).toBe('About');
+  });
+
+  test('normalizes /index.html to / for About link', () => {
+    mockUsePathname.mockReturnValue('/index.html');
+    
+    render(<Sidebar><div>Test</div></Sidebar>);
+    
+    const aboutLink = screen.getByText('About').closest('a');
+    expect(aboutLink?.getAttribute('class')).toContain('active');
+  });
+
+  test('handleLinkClick updates active state immediately', () => {
+    mockUsePathname.mockReturnValue('/');
+    
+    render(<Sidebar><div>Test</div></Sidebar>);
+    
+    const timerLink = screen.getByText('Timer').closest('a');
+    expect(timerLink?.getAttribute('class')).not.toContain('active');
+    
+    // Simulate click
+    fireEvent.click(timerLink!);
+    
+    // Should be active immediately
+    expect(timerLink?.getAttribute('class')).toContain('active');
+    expect(screen.getByText('About').closest('a')?.getAttribute('class')).not.toContain('active');
+  });
+
+  test('only one navigation link is active at a time', () => {
+    mockUsePathname.mockReturnValue('/timer');
+    
+    render(<Sidebar><div>Test</div></Sidebar>);
+    
+    const timerLink = screen.getByText('Timer').closest('a');
+    const aboutLink = screen.getByText('About').closest('a');
+    const reportsLink = screen.getByText('Reports').closest('a');
+    
+    expect(timerLink?.getAttribute('class')).toContain('active');
+    expect(aboutLink?.getAttribute('class')).not.toContain('active');
+    expect(reportsLink?.getAttribute('class')).not.toContain('active');
+  });
+
+  test('sets aria-current on active link', () => {
+    mockUsePathname.mockReturnValue('/reports');
+    
+    render(<Sidebar><div>Test</div></Sidebar>);
+    
+    const reportsLink = screen.getByText('Reports').closest('a');
+    expect(reportsLink?.getAttribute('aria-current')).toBe('page');
+    
+    const timerLink = screen.getByText('Timer').closest('a');
+    expect(timerLink?.getAttribute('aria-current')).toBeNull();
   });
 });
 

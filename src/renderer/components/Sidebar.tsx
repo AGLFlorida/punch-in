@@ -29,7 +29,11 @@ export default function Sidebar({ children }: SidebarProps) {
   useEffect(() => {
     if (hasManualClick.current) {
       // User has manually clicked, don't overwrite with potentially stale pathname
-      return;
+      // Reset the flag after a short delay to allow pathname to catch up
+      const timer = setTimeout(() => {
+        hasManualClick.current = false;
+      }, 200);
+      return () => clearTimeout(timer);
     }
     const normalized = normalizePath(pathname);
     setCurrentPath(prev => {
@@ -95,6 +99,7 @@ export default function Sidebar({ children }: SidebarProps) {
               href="/" 
               className={`navBtn ${isAboutActive ? 'active' : ''}`}
               onClick={() => handleLinkClick('/')}
+              aria-current={isAboutActive ? 'page' : undefined}
             >
               <InfoIcon />
               {collapsed ? (
@@ -107,6 +112,7 @@ export default function Sidebar({ children }: SidebarProps) {
               href="/timer" 
               className={`navBtn ${isTimerActive ? 'active' : ''}`}
               onClick={() => handleLinkClick('/timer')}
+              aria-current={isTimerActive ? 'page' : undefined}
             >
               <ClockIcon />
               {collapsed ? (
@@ -119,6 +125,7 @@ export default function Sidebar({ children }: SidebarProps) {
               href="/reports" 
               className={`navBtn ${isReportsActive ? 'active' : ''}`}
               onClick={() => handleLinkClick('/reports')}
+              aria-current={isReportsActive ? 'page' : undefined}
             >
               <ReportIcon />
               {collapsed ? (
@@ -131,6 +138,7 @@ export default function Sidebar({ children }: SidebarProps) {
               href="/sessions" 
               className={`navBtn ${isSessionsActive ? 'active' : ''}`}
               onClick={() => handleLinkClick('/sessions')}
+              aria-current={isSessionsActive ? 'page' : undefined}
             >
               <ListIcon />
               {collapsed ? (
@@ -143,6 +151,7 @@ export default function Sidebar({ children }: SidebarProps) {
               href="/configure" 
               className={`navBtn ${isConfigureActive ? 'active' : ''}`}
               onClick={() => handleLinkClick('/configure')}
+              aria-current={isConfigureActive ? 'page' : undefined}
             >
               <GearIcon />
               {collapsed ? (

@@ -14,6 +14,10 @@ type ProjectNames = {
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const ONE_MINUTE_MS = 60 * 1000;
 
+// Fallback task ID for stop operation when currentTask is missing
+// Using -1 as a sentinel value that passes validation (!task?.id check)
+const FALLBACK_TASK_ID = -1;
+
 export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | ''>('');
@@ -121,10 +125,11 @@ export default function TimerPage() {
         // When timer is running, currentTask.current should have a valid ID set by onStart
         // Use currentTask.current if it exists and has an ID
         if (!currentTask.current || !currentTask.current.id) {
-          console.error("Cannot stop timer: currentTask.current is missing or has no ID", currentTask.current);
+          if (process.env.NODE_ENV === 'development') {
+            console.error("Cannot stop timer: currentTask.current is missing or has no ID", currentTask.current);
+          }
           // Still attempt to stop with a fallback task ID (handler requires it, but service doesn't use it)
-          // Use -1 as a sentinel value that passes validation (!task?.id check)
-          const fallbackTask = { id: -1, name: '', project_id: -1 } as TaskModel;
+          const fallbackTask = { id: FALLBACK_TASK_ID, name: '', project_id: -1 } as TaskModel;
           const stopped: boolean = await window.tp.stop(fallbackTask);
           if (stopped) {
             setIsRunning(false);

@@ -7,19 +7,19 @@ export default function Home() {
         <h1 className="title">About</h1>
       </div>
       <div className="content">
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', padding: '32px 0' }}>
+        <div className="about-page">
           <Image 
             src="/logo.png" 
             alt="Punch In Logo" 
             width={128} 
             height={128}
-            style={{ borderRadius: '16px' }}
+            className="about-logo"
           />
-          <div style={{ textAlign: 'center', maxWidth: '500px' }}>
-            <p style={{ fontSize: '18px', marginBottom: '16px' }}>
+          <div className="about-content">
+            <p className="about-welcome">
               Welcome to PunchIn. Please select an option from the menu on the left.
             </p>
-            <p style={{ marginTop: '32px', marginBottom: '16px' }}>
+            <p className="about-support">
               If you find this app useful, consider supporting its development:
             </p>
             <a 
@@ -27,6 +27,7 @@ export default function Home() {
               target="_blank" 
               rel="noopener noreferrer"
               className="coffee-link"
+              aria-label="Support AGL Consulting of Florida on Buy Me a Coffee"
             >
               ☕ Buy Me a Coffee
             </a>
