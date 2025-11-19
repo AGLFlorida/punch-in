@@ -19,6 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta
           httpEquiv="Content-Security-Policy"
           content={
+            // Note: 'unsafe-eval' is required for React Fast Refresh in development.
+            // This will trigger an Electron security warning in dev, but it's expected
+            // and the warning will not appear in packaged builds (production CSP excludes it).
             `default-src 'self';
             script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : ''};
             style-src 'self' 'unsafe-inline';

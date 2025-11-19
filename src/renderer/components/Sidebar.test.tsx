@@ -4,8 +4,9 @@ import '@testing-library/jest-dom';
 import Sidebar from './Sidebar';
 
 // Mock Next.js components
+const mockUsePathname = jest.fn(() => '/timer');
 jest.mock('next/navigation', () => ({
-  usePathname: jest.fn(() => '/timer'),
+  usePathname: () => mockUsePathname(),
 }));
 
 jest.mock('next/image', () => ({
@@ -27,6 +28,7 @@ jest.mock('./CustomImage', () => ({
   GearIcon: () => React.createElement('svg', { 'data-testid': 'gear-icon' }),
   ReportIcon: () => React.createElement('svg', { 'data-testid': 'report-icon' }),
   ListIcon: () => React.createElement('svg', { 'data-testid': 'list-icon' }),
+  InfoIcon: () => React.createElement('svg', { 'data-testid': 'info-icon' }),
 }));
 
 describe('Sidebar', () => {
@@ -39,6 +41,7 @@ describe('Sidebar', () => {
     render(<Sidebar><div>Test Content</div></Sidebar>);
 
     expect(screen.getByText('Punch In')).toBeInTheDocument();
+    expect(screen.getByText('About')).toBeInTheDocument();
     expect(screen.getByText('Timer')).toBeInTheDocument();
     expect(screen.getByText('Reports')).toBeInTheDocument();
     expect(screen.getByText('Sessions')).toBeInTheDocument();
@@ -49,6 +52,7 @@ describe('Sidebar', () => {
   test('renders icons', () => {
     render(<Sidebar><div>Test</div></Sidebar>);
 
+    expect(screen.getByTestId('info-icon')).toBeInTheDocument();
     expect(screen.getByTestId('clock-icon')).toBeInTheDocument();
     expect(screen.getByTestId('report-icon')).toBeInTheDocument();
     expect(screen.getByTestId('list-icon')).toBeInTheDocument();
@@ -112,6 +116,24 @@ describe('Sidebar', () => {
     await waitFor(() => {
       expect(screen.queryByText('<')).not.toBeInTheDocument();
     });
+  });
+
+  test('About link routes to home and is first in navigation', () => {
+    mockUsePathname.mockReturnValue('/');
+    
+    render(<Sidebar><div>Test</div></Sidebar>);
+    
+    const aboutLink = screen.getByText('About').closest('a');
+    expect(aboutLink).toBeInTheDocument();
+    expect(aboutLink?.getAttribute('href')).toBe('/');
+    
+    // Verify About is the first nav item by checking order
+    const navLinks = screen.getAllByRole('link').filter(link => 
+      link.textContent === 'About' || 
+      link.textContent === 'Timer' || 
+      link.textContent === 'Reports'
+    );
+    expect(navLinks[0].textContent).toBe('About');
   });
 });
 

@@ -3,14 +3,59 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect, type PropsWithChildren } from 'react';
-import { ClockIcon, GearIcon, ReportIcon, ListIcon } from './CustomImage';
+import { useState, useEffect, useRef, type PropsWithChildren } from 'react';
+import { ClockIcon, GearIcon, ReportIcon, ListIcon, InfoIcon } from './CustomImage';
 
 type SidebarProps = PropsWithChildren<object>;
 
 export default function Sidebar({ children }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState<boolean>(false);
+  
+  // Normalize pathname: /index.html should be treated as /
+  const normalizePath = (path: string | null | undefined): string => {
+    if (!path || typeof path !== 'string') return '/';
+    // In Electron with Next.js, the root route may be /index.html
+    if (path === '/index.html' || path === '/') return '/';
+    return path;
+  };
+  
+  const normalizedPathname = normalizePath(pathname);
+  const [currentPath, setCurrentPath] = useState<string>(normalizedPathname);
+  const hasManualClick = useRef<boolean>(false);
+  
+  // Update currentPath when pathname changes from usePathname hook
+  // But don't overwrite if user has manually clicked a link (usePathname may be stale in Electron)
+  useEffect(() => {
+    if (hasManualClick.current) {
+      // User has manually clicked, don't overwrite with potentially stale pathname
+      return;
+    }
+    const normalized = normalizePath(pathname);
+    setCurrentPath(prev => {
+      // Only update if pathname actually changed and is different from current
+      if (normalized !== prev) {
+        return normalized;
+      }
+      return prev;
+    });
+  }, [pathname]);
+  
+  // Handler to manually update currentPath when a link is clicked
+  // This ensures the active state updates immediately on click
+  const handleLinkClick = (href: string) => {
+    hasManualClick.current = true;
+    setCurrentPath(href);
+  };
+  
+  // Determine active states - ensure only one is active at a time
+  // This prevents multiple links from being active simultaneously
+  const isAboutActive = currentPath === '/';
+  const isTimerActive = !isAboutActive && currentPath.startsWith('/timer');
+  const isReportsActive = !isAboutActive && !isTimerActive && currentPath.startsWith('/reports');
+  const isSessionsActive = !isAboutActive && !isTimerActive && !isReportsActive && currentPath.startsWith('/sessions');
+  const isConfigureActive = !isAboutActive && !isTimerActive && !isReportsActive && !isSessionsActive && currentPath.startsWith('/configure');
+  
 
   // Load collapsed state from localStorage after mount
   useEffect(() => {
@@ -46,7 +91,23 @@ export default function Sidebar({ children }: SidebarProps) {
             {!collapsed ? <button className="toggle" onClick={() => setCollapsed(!collapsed)}>{'<'}</button>:''}
           </div>
           <nav className="nav">
-            <Link href="/timer" className={`navBtn ${pathname.startsWith('/timer') ? 'active' : ''}`}>
+            <Link 
+              href="/" 
+              className={`navBtn ${isAboutActive ? 'active' : ''}`}
+              onClick={() => handleLinkClick('/')}
+            >
+              <InfoIcon />
+              {collapsed ? (
+                ''
+              ) : (
+                <span>About</span>
+              )}
+            </Link>
+            <Link 
+              href="/timer" 
+              className={`navBtn ${isTimerActive ? 'active' : ''}`}
+              onClick={() => handleLinkClick('/timer')}
+            >
               <ClockIcon />
               {collapsed ? (
                 ''
@@ -54,7 +115,11 @@ export default function Sidebar({ children }: SidebarProps) {
                 <span>Timer</span>
               )}
             </Link>
-            <Link href="/reports" className={`navBtn ${pathname.startsWith('/reports') ? 'active' : ''}`}>
+            <Link 
+              href="/reports" 
+              className={`navBtn ${isReportsActive ? 'active' : ''}`}
+              onClick={() => handleLinkClick('/reports')}
+            >
               <ReportIcon />
               {collapsed ? (
                 ''
@@ -62,7 +127,11 @@ export default function Sidebar({ children }: SidebarProps) {
                 <span>Reports</span>
               )}
             </Link>
-            <Link href="/sessions" className={`navBtn ${pathname.startsWith('/sessions') ? 'active' : ''}`}>
+            <Link 
+              href="/sessions" 
+              className={`navBtn ${isSessionsActive ? 'active' : ''}`}
+              onClick={() => handleLinkClick('/sessions')}
+            >
               <ListIcon />
               {collapsed ? (
                 ''
@@ -70,7 +139,11 @@ export default function Sidebar({ children }: SidebarProps) {
                 <span>Sessions</span>
               )}
             </Link>
-            <Link href="/configure" className={`navBtn ${pathname.startsWith('/configure') ? 'active' : ''}`}>
+            <Link 
+              href="/configure" 
+              className={`navBtn ${isConfigureActive ? 'active' : ''}`}
+              onClick={() => handleLinkClick('/configure')}
+            >
               <GearIcon />
               {collapsed ? (
                 ''

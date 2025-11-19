@@ -117,9 +117,24 @@ export default function TimerPage() {
   const performStop = useCallback(async (showError: boolean = true): Promise<boolean> => {
     try {
       if (typeof window !== 'undefined' && window.tp?.stop) {
-        // Note: stop() closes ALL open sessions, so we don't need currentTask.current
-        // Pass an empty task object since the handler requires a TaskModel but doesn't use it
-        const stopped: boolean = await window.tp.stop({} as TaskModel);
+        // The handler requires a TaskModel with an id, even though stop() closes ALL open sessions
+        // When timer is running, currentTask.current should have a valid ID set by onStart
+        // Use currentTask.current if it exists and has an ID
+        if (!currentTask.current || !currentTask.current.id) {
+          console.error("Cannot stop timer: currentTask.current is missing or has no ID", currentTask.current);
+          // Still attempt to stop with a fallback task ID (handler requires it, but service doesn't use it)
+          // Use -1 as a sentinel value that passes validation (!task?.id check)
+          const fallbackTask = { id: -1, name: '', project_id: -1 } as TaskModel;
+          const stopped: boolean = await window.tp.stop(fallbackTask);
+          if (stopped) {
+            setIsRunning(false);
+            setStartTs(null);
+            setElapsedTs(0);
+          }
+          return stopped;
+        }
+        
+        const stopped: boolean = await window.tp.stop(currentTask.current);
         
         if (stopped) {
           // Only update UI state after successful stop
