@@ -6,10 +6,22 @@ type ConfirmDialogProps = {
   onConfirm: () => void;
   onCancel: () => void;
   isOpen: boolean;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  confirmButtonStyle?: React.CSSProperties;
 }
 
 export const ConfirmDialog = (props: ConfirmDialogProps) => {
-  const { title, message, onConfirm, onCancel, isOpen } = props;
+  const { 
+    title, 
+    message, 
+    onConfirm, 
+    onCancel, 
+    isOpen,
+    confirmLabel = 'Delete',
+    cancelLabel = 'Cancel',
+    confirmButtonStyle
+  } = props;
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -68,7 +80,7 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
               fontWeight: 500,
             }}
           >
-            Cancel
+            {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
@@ -81,9 +93,10 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
               cursor: 'pointer',
               fontSize: 14,
               fontWeight: 500,
+              ...confirmButtonStyle,
             }}
           >
-            Delete
+            {confirmLabel}
           </button>
         </div>
       </div>

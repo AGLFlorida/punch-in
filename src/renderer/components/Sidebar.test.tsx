@@ -17,8 +17,15 @@ jest.mock('next/image', () => ({
 }));
 
 jest.mock('next/link', () => {
-  return ({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: unknown }) => {
-    return React.createElement('a', { href, ...props }, children);
+  return ({ children, href, onClick, ...props }: { children: React.ReactNode; href: string; onClick?: (e: React.MouseEvent) => void; [key: string]: unknown }) => {
+    return React.createElement('a', { 
+      href, 
+      onClick: (e: React.MouseEvent) => {
+        e.preventDefault(); // Prevent actual navigation in tests
+        onClick?.(e);
+      },
+      ...props 
+    }, children);
   };
 });
 
@@ -29,6 +36,16 @@ jest.mock('./CustomImage', () => ({
   ReportIcon: () => React.createElement('svg', { 'data-testid': 'report-icon' }),
   ListIcon: () => React.createElement('svg', { 'data-testid': 'list-icon' }),
   InfoIcon: () => React.createElement('svg', { 'data-testid': 'info-icon' }),
+}));
+
+// Mock NavigationGuard
+jest.mock('./NavigationGuard', () => ({
+  NavigationGuardProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useNavigationGuard: () => ({
+    registerGuard: jest.fn(),
+    unregisterGuard: jest.fn(),
+    checkGuard: jest.fn(() => Promise.resolve(true)), // Always allow navigation in tests
+  }),
 }));
 
 describe('Sidebar', () => {
@@ -145,7 +162,7 @@ describe('Sidebar', () => {
     expect(aboutLink?.getAttribute('class')).toContain('active');
   });
 
-  test('handleLinkClick updates active state immediately', () => {
+  test('handleLinkClick updates active state immediately', async () => {
     mockUsePathname.mockReturnValue('/');
     
     render(<Sidebar><div>Test</div></Sidebar>);
@@ -156,8 +173,10 @@ describe('Sidebar', () => {
     // Simulate click
     fireEvent.click(timerLink!);
     
-    // Should be active immediately
-    expect(timerLink?.getAttribute('class')).toContain('active');
+    // Should be active after async guard check
+    await waitFor(() => {
+      expect(timerLink?.getAttribute('class')).toContain('active');
+    });
     expect(screen.getByText('About').closest('a')?.getAttribute('class')).not.toContain('active');
   });
 
