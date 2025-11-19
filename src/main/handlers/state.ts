@@ -26,10 +26,10 @@ export const stateHandler = (services: ServiceManager) => {
       const sessionRow = sessionSvc.getOneRow();
       
       if (!sessionRow) {
-      return {
+        return {
           running: false,
           startTs: null,
-        currentTask: {} as TaskModel
+          currentTask: {} as TaskModel
         };
       }
 

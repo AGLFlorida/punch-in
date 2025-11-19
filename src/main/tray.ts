@@ -135,8 +135,8 @@ export function updateTray() {
     const elapsed = now - sessionData.startTime;
     const formattedTime = format(elapsed);
     const title = `${formattedTime} — ${sessionData.taskName}`;
-  tray.setTitle(title);
-  tray.setToolTip(`Punch In — ${title}`);
+    tray.setTitle(title);
+    tray.setToolTip(`Punch In — ${title}`);
   } else {
     setTrayIdle();
   }
