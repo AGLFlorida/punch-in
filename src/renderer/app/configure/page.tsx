@@ -191,7 +191,7 @@ export default function ConfigurePage() {
   };
 
   // (Re)load companies and projects from DB to update UI
-  const loadSelectables = async () => {
+  const loadSelectables = async (): Promise<{ companies: CompanyModel[]; projects: ProjectModel[] }> => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cos = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getCompanyList) ? await (window as any).tp.getCompanyList() : [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -207,6 +207,8 @@ export default function ConfigurePage() {
           projects: JSON.parse(JSON.stringify(projs)),
         };
       }
+
+      return { companies: cos, projects: projs };
   }
 
   const onSave = async () => {
@@ -231,12 +233,12 @@ export default function ConfigurePage() {
       const filteredProjects = projects.filter((p: ProjectModel) => p.company_id != -1)
       await window.tp.setProjectList(filteredProjects);
 
-      await loadSelectables();
-
-      // Store snapshot after successful save
+      // Load fresh data from DB and use it to update snapshot
+      // This ensures the snapshot matches what's actually in the DB after save
+      const loaded = await loadSelectables();
       savedSnapshotRef.current = {
-        companies: JSON.parse(JSON.stringify(companies)),
-        projects: JSON.parse(JSON.stringify(projects)),
+        companies: JSON.parse(JSON.stringify(loaded.companies)),
+        projects: JSON.parse(JSON.stringify(loaded.projects)),
       };
       setHasUnsavedChanges(false);
       setDidSave(true);
