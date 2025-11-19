@@ -22,6 +22,8 @@
     "node_modules",
     "dist",
     ".next",
-    "**/*.test.*"
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/__tests__/**"
   ]
 }
