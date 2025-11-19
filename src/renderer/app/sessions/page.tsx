@@ -66,11 +66,24 @@ export default function SessionsPage() {
       filtered = filtered.filter(r => r?.company_name === selectedCompany);
     }
 
-    // Filter by date
+    // Filter by date - include sessions that overlap the selected date
+    // (sessions that start on the date, end on the date, or span across the date)
     if (selectedDate) {
       filtered = filtered.filter(r => {
         const startDate = new Date(r.start_time).toISOString().split('T')[0];
-        return startDate === selectedDate;
+        const endDate = r.end_time ? new Date(r.end_time).toISOString().split('T')[0] : null;
+        
+        // Include if session starts on selected date
+        if (startDate === selectedDate) return true;
+        
+        // Include if session ends on selected date
+        if (endDate === selectedDate) return true;
+        
+        // Include if session spans across the selected date
+        // (starts before and ends after the selected date)
+        if (endDate && startDate < selectedDate && endDate > selectedDate) return true;
+        
+        return false;
       });
     }
 

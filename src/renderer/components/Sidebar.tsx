@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useRef, type PropsWithChildren } from 'react';
@@ -11,6 +11,7 @@ type SidebarProps = PropsWithChildren<object>;
 
 export default function Sidebar({ children }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const { checkGuard } = useNavigationGuard();
   
@@ -49,19 +50,24 @@ export default function Sidebar({ children }: SidebarProps) {
   
   // Handler to manually update currentPath when a link is clicked
   // This ensures the active state updates immediately on click
-  const handleLinkClick = async (href: string, e?: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleLinkClick = async (href: string, e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Always prevent default first to stop Next.js Link navigation
+    e.preventDefault();
+    e.stopPropagation();
+    
     // Check navigation guard before proceeding
     const canNavigate = await checkGuard(href);
     if (!canNavigate) {
-      // Guard blocked navigation, prevent default link behavior
-      if (e) {
-        e.preventDefault();
-      }
+      // Guard blocked navigation, don't proceed
       return;
     }
     
+    // Navigation allowed, proceed with manual navigation
     hasManualClick.current = true;
     setCurrentPath(href);
+    
+    // Use Next.js router to navigate programmatically
+    router.push(href);
   };
   
   // Determine active states - ensure only one is active at a time

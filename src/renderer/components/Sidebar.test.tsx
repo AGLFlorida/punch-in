@@ -5,8 +5,12 @@ import Sidebar from './Sidebar';
 
 // Mock Next.js components
 const mockUsePathname = jest.fn(() => '/timer');
+const mockPush = jest.fn();
 jest.mock('next/navigation', () => ({
   usePathname: () => mockUsePathname(),
+  useRouter: () => ({
+    push: mockPush,
+  }),
 }));
 
 jest.mock('next/image', () => ({

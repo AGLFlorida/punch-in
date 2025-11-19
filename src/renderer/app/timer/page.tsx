@@ -253,8 +253,8 @@ export default function TimerPage() {
     } else {
       // For existing tasks, validate currentTask
       if (!currentTask.current || !currentTask.current?.project_id) {
-        console.error("Could not start undefined task:", JSON.stringify(currentTask.current));
-        return;
+      console.error("Could not start undefined task:", JSON.stringify(currentTask.current));
+      return;
       }
     }
 
@@ -308,8 +308,8 @@ export default function TimerPage() {
       toggleNewTask(true);
     } else {
       // Selecting an existing task: load the task and update selectedProjectId to match
-      const someTask = getTaskById(task_id);
-      setCurrentTask(someTask);
+    const someTask = getTaskById(task_id);
+    setCurrentTask(someTask);
       if (someTask?.project_id) {
         setSelectedProjectId(someTask.project_id);
       }

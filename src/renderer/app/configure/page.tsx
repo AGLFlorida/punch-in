@@ -88,18 +88,47 @@ export default function ConfigurePage() {
   // Update hasUnsavedChanges when state changes
   useEffect(() => {
     const hasChangesFlag = hasChanges();
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Configure] hasChanges check:', {
+        hasChangesFlag,
+        companiesLength: companies.length,
+        projectsLength: projects.length,
+        deletedCompaniesLength: deletedCompanies.length,
+        deletedProjectsLength: deletedProjects.length,
+        snapshotExists: !!savedSnapshotRef.current,
+        snapshotCompaniesLength: savedSnapshotRef.current?.companies.length,
+        snapshotProjectsLength: savedSnapshotRef.current?.projects.length,
+      });
+    }
     setHasUnsavedChanges(hasChangesFlag);
   }, [companies, projects, deletedCompanies, deletedProjects]);
 
   // Register navigation guard
+  // Use a ref to always get the latest hasUnsavedChanges value
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+
   useEffect(() => {
     const guard = async (href?: string): Promise<boolean> => {
-      if (!hasUnsavedChanges) {
+      // Always check the current value from ref, not the closure value
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Configure] Guard called:', {
+          href,
+          hasUnsavedChanges: hasUnsavedChangesRef.current,
+        });
+      }
+      
+      if (!hasUnsavedChangesRef.current) {
         return true; // Allow navigation
       }
 
       // Block navigation and show dialog with pending navigation path
       if (href) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Configure] Blocking navigation, showing dialog');
+        }
         setUnsavedChangesDialog({
           isOpen: true,
           pendingNavigation: href,
@@ -113,7 +142,7 @@ export default function ConfigurePage() {
     return () => {
       unregisterGuard();
     };
-  }, [hasUnsavedChanges, registerGuard, unregisterGuard]);
+  }, [registerGuard, unregisterGuard]);
 
   useEffect(() => {
     loadSelectables();
@@ -190,8 +219,8 @@ export default function ConfigurePage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const projs = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
       
-      if (cos.length > 0) setCompanies(cos);
-      if (projs.length > 0) setProjects(projs);
+      setCompanies(cos);
+      setProjects(projs);
 
       // Store snapshot after initial load so unchanged data isn't considered "unsaved"
       if (!savedSnapshotRef.current) {

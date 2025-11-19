@@ -68,21 +68,6 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
         </div>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <button
-            onClick={onCancel}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: '1px solid #d1d5db',
-              background: '#fff',
-              color: '#374151',
-              cursor: 'pointer',
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            {cancelLabel}
-          </button>
-          <button
             onClick={onConfirm}
             style={{
               padding: '8px 16px',
@@ -97,6 +82,21 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
             }}
           >
             {confirmLabel}
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: '1px solid #d1d5db',
+              background: '#fff',
+              color: '#374151',
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            {cancelLabel}
           </button>
         </div>
       </div>

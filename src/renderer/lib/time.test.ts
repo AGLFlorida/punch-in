@@ -4,31 +4,31 @@ import type { TaskModel } from '../../main/services/task';
 
 describe('msToHMS', () => {
   test('formats zero correctly', () => {
-    expect(msToHMS(0)).toBe('00:00:00');
+  expect(msToHMS(0)).toBe('00:00:00');
   });
 
   test('formats milliseconds less than one second', () => {
-    expect(msToHMS(999)).toBe('00:00:00');
+  expect(msToHMS(999)).toBe('00:00:00');
     expect(msToHMS(500)).toBe('00:00:00');
   });
 
   test('formats seconds correctly', () => {
-    expect(msToHMS(1000)).toBe('00:00:01');
+  expect(msToHMS(1000)).toBe('00:00:01');
     expect(msToHMS(59_000)).toBe('00:00:59');
   });
 
   test('formats minutes correctly', () => {
     expect(msToHMS(60_000)).toBe('00:01:00');
-    expect(msToHMS(61_000)).toBe('00:01:01');
+  expect(msToHMS(61_000)).toBe('00:01:01');
     expect(msToHMS(3599_000)).toBe('00:59:59');
   });
 
   test('formats hours correctly', () => {
-    expect(msToHMS(3_600_000)).toBe('01:00:00');
-    expect(msToHMS(3661_000)).toBe('01:01:01');
+  expect(msToHMS(3_600_000)).toBe('01:00:00');
+  expect(msToHMS(3661_000)).toBe('01:01:01');
     expect(msToHMS(7200_000)).toBe('02:00:00');
     expect(msToHMS(3661000)).toBe('01:01:01');
-  });
+});
 
   test('handles large values', () => {
     expect(msToHMS(86400_000)).toBe('24:00:00');
@@ -76,7 +76,7 @@ describe('elapsedNow', () => {
   test('returns correct timing for past timestamp', () => {
     const pastTime = 1759422714624;
     const state: PunchInState = {
-      running: true,
+    running: true,
       currentTask: { name: 'underTest' } as TaskModel,
       startTs: pastTime
     };

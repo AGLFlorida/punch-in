@@ -78,11 +78,11 @@ Important developer notes
   - Electron runtime for running/packaging the app
   
   The project automatically handles rebuilds via npm lifecycle hooks (`pretest`, `prestart`, `prepackage`). If you need to manually rebuild:
-  
-  ```bash
+
+```bash
   npm run rebuild:sqlite:node      # For Node.js (tests)
   npm run rebuild:sqlite:electron  # For Electron (running/packaging)
-  ```
+```
 
 - DB location: the SQLite DB file lives in Electron's `userData` directory (see `src/main/services/data.ts`). Schema is created programmatically; the initializer is named `createScema` (note the spelling).
 
