@@ -6,10 +6,22 @@ type ConfirmDialogProps = {
   onConfirm: () => void;
   onCancel: () => void;
   isOpen: boolean;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  confirmButtonStyle?: React.CSSProperties;
 }
 
 export const ConfirmDialog = (props: ConfirmDialogProps) => {
-  const { title, message, onConfirm, onCancel, isOpen } = props;
+  const { 
+    title, 
+    message, 
+    onConfirm, 
+    onCancel, 
+    isOpen,
+    confirmLabel = 'Delete',
+    cancelLabel = 'Cancel',
+    confirmButtonStyle
+  } = props;
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -56,6 +68,22 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
         </div>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <button
+            onClick={onConfirm}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: 'none',
+              background: '#dc2626',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 500,
+              ...confirmButtonStyle,
+            }}
+          >
+            {confirmLabel}
+          </button>
+          <button
             onClick={onCancel}
             style={{
               padding: '8px 16px',
@@ -68,22 +96,7 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
               fontWeight: 500,
             }}
           >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: 'none',
-              background: '#dc2626',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            Delete
+            {cancelLabel}
           </button>
         </div>
       </div>

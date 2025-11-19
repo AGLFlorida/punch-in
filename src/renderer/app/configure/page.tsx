@@ -1,18 +1,29 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { CompanyModel } from 'src/main/services/company';
 import { ProjectModel } from 'src/main/services/project';
 import { NotifyBox } from '@/components/Notify';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';
+import { useNavigationGuard } from '@/components/NavigationGuard';
+
+type SavedSnapshot = {
+  companies: CompanyModel[];
+  projects: ProjectModel[];
+};
 
 export default function ConfigurePage() {
+  const router = useRouter();
+  const { registerGuard, unregisterGuard } = useNavigationGuard();
   const [companies, setCompanies] = useState<CompanyModel[]>([]);
   const [projects, setProjects] = useState<ProjectModel[]>([]);
   const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<ProjectModel[]>([]);
   const [didSave, setDidSave] = useState<boolean>(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const savedSnapshotRef = useRef<SavedSnapshot | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     type: 'company' | 'project' | null;
@@ -24,6 +35,92 @@ export default function ConfigurePage() {
     index: null,
     name: '',
   });
+  const [unsavedChangesDialog, setUnsavedChangesDialog] = useState<{
+    isOpen: boolean;
+    pendingNavigation: string | null;
+  }>({
+    isOpen: false,
+    pendingNavigation: null,
+  });
+
+  // Helper function to deep compare arrays
+  const arraysEqual = <T,>(a: T[], b: T[], compareFn: (a: T, b: T) => boolean): boolean => {
+    if (a.length !== b.length) return false;
+    return a.every((item, index) => compareFn(item, b[index]));
+  };
+
+  // Compare company models
+  const companyEqual = (a: CompanyModel, b: CompanyModel): boolean => {
+    return a.id === b.id && a.name === b.name;
+  };
+
+  // Compare project models
+  const projectEqual = (a: ProjectModel, b: ProjectModel): boolean => {
+    return a.id === b.id && a.name === b.name && a.company_id === b.company_id;
+  };
+
+  // Check if there are unsaved changes
+  const hasChanges = (): boolean => {
+    const snapshot = savedSnapshotRef.current;
+    if (!snapshot) {
+      // No snapshot means data hasn't loaded yet, no changes
+      return false;
+    }
+
+    // Check if deleted arrays have items
+    if (deletedCompanies.length > 0 || deletedProjects.length > 0) {
+      return true;
+    }
+
+    // Compare companies
+    if (!arraysEqual(companies, snapshot.companies, companyEqual)) {
+      return true;
+    }
+
+    // Compare projects
+    if (!arraysEqual(projects, snapshot.projects, projectEqual)) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // Update hasUnsavedChanges when state changes
+  useEffect(() => {
+    const hasChangesFlag = hasChanges();
+    setHasUnsavedChanges(hasChangesFlag);
+  }, [companies, projects, deletedCompanies, deletedProjects]);
+
+  // Register navigation guard
+  // Use a ref to always get the latest hasUnsavedChanges value
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    const guard = async (href?: string): Promise<boolean> => {
+      // Always check the current value from ref, not the closure value
+      if (!hasUnsavedChangesRef.current) {
+        return true; // Allow navigation
+      }
+
+      // Block navigation and show dialog with pending navigation path
+      if (href) {
+        setUnsavedChangesDialog({
+          isOpen: true,
+          pendingNavigation: href,
+        });
+      }
+      return false; // Block navigation
+    };
+
+    registerGuard(guard);
+
+    return () => {
+      unregisterGuard();
+    };
+  }, [registerGuard, unregisterGuard]);
 
   useEffect(() => {
     loadSelectables();
@@ -94,14 +191,24 @@ export default function ConfigurePage() {
   };
 
   // (Re)load companies and projects from DB to update UI
-  const loadSelectables = async () => {
+  const loadSelectables = async (): Promise<{ companies: CompanyModel[]; projects: ProjectModel[] }> => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cos = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getCompanyList) ? await (window as any).tp.getCompanyList() : [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const projs = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
       
-      if (cos.length > 0) setCompanies(cos);
-      if (projs.length > 0) setProjects(projs);
+      setCompanies(cos);
+      setProjects(projs);
+
+      // Store snapshot after initial load so unchanged data isn't considered "unsaved"
+      if (!savedSnapshotRef.current) {
+        savedSnapshotRef.current = {
+          companies: JSON.parse(JSON.stringify(cos)),
+          projects: JSON.parse(JSON.stringify(projs)),
+        };
+      }
+
+      return { companies: cos, projects: projs };
   }
 
   const onSave = async () => {
@@ -126,12 +233,35 @@ export default function ConfigurePage() {
       const filteredProjects = projects.filter((p: ProjectModel) => p.company_id != -1)
       await window.tp.setProjectList(filteredProjects);
 
-      loadSelectables();
-
+      // Load fresh data from DB and use it to update snapshot
+      // This ensures the snapshot matches what's actually in the DB after save
+      const loaded = await loadSelectables();
+      savedSnapshotRef.current = {
+        companies: JSON.parse(JSON.stringify(loaded.companies)),
+        projects: JSON.parse(JSON.stringify(loaded.projects)),
+      };
+      setHasUnsavedChanges(false);
       setDidSave(true);
     } catch (e) {
       console.error(e);
     } 
+  };
+
+  const handleConfirmUnsavedNavigation = () => {
+    const href = unsavedChangesDialog.pendingNavigation;
+    if (href) {
+      // Clear unsaved changes flag and snapshot
+      setHasUnsavedChanges(false);
+      savedSnapshotRef.current = null;
+      // Navigate to the intended destination
+      router.push(href);
+    }
+    setUnsavedChangesDialog({ isOpen: false, pendingNavigation: null });
+  };
+
+  const handleCancelUnsavedNavigation = () => {
+    // Keep unsaved changes flag, just close dialog
+    setUnsavedChangesDialog({ isOpen: false, pendingNavigation: null });
   };
 
   return (
@@ -148,6 +278,16 @@ export default function ConfigurePage() {
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
         isOpen={confirmDialog.isOpen}
+      />
+      <ConfirmDialog
+        title="Unsaved Changes"
+        message="You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
+        onConfirm={handleConfirmUnsavedNavigation}
+        onCancel={handleCancelUnsavedNavigation}
+        isOpen={unsavedChangesDialog.isOpen}
+        confirmLabel="OK"
+        cancelLabel="Cancel"
+        confirmButtonStyle={{ background: '#2563eb' }}
       />
       <div className="header">
         <h1 className="title">Configure</h1>

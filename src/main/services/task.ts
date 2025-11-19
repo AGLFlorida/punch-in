@@ -19,7 +19,7 @@ export class TaskService implements ServiceInterface<TaskModel> {
 
   getOne(id?: number): TaskModel {
     if (!id) {
-      return {} as TaskModel;
+    return {} as TaskModel;
     }
     const row = this.db?.prepare(`
       SELECT id, name, project_id, is_active, deleted_at, updated_at, created_at 

@@ -111,9 +111,9 @@ export class SessionService implements ServiceInterface<SessionModel> {
         s.start_time,
         s.end_time
       FROM session s
-      JOIN task t ON t.id = s.task_id
-      JOIN project p ON p.id = t.project_id
-      JOIN company c ON c.id = p.company_id
+      JOIN task t ON t.id = s.task_id AND t.is_active = 1
+      JOIN project p ON p.id = t.project_id AND p.is_active = 1
+      JOIN company c ON c.id = p.company_id AND c.is_active = 1
       WHERE s.is_active = 1
       ORDER BY s.id DESC
     `).all() as Array<{

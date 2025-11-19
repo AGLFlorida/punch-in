@@ -1,16 +1,19 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useRef, type PropsWithChildren } from 'react';
 import { ClockIcon, GearIcon, ReportIcon, ListIcon, InfoIcon } from './CustomImage';
+import { useNavigationGuard } from './NavigationGuard';
 
 type SidebarProps = PropsWithChildren<object>;
 
 export default function Sidebar({ children }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState<boolean>(false);
+  const { checkGuard } = useNavigationGuard();
   
   // Normalize pathname: /index.html should be treated as /
   const normalizePath = (path: string | null | undefined): string => {
@@ -47,9 +50,30 @@ export default function Sidebar({ children }: SidebarProps) {
   
   // Handler to manually update currentPath when a link is clicked
   // This ensures the active state updates immediately on click
-  const handleLinkClick = (href: string) => {
+  const handleLinkClick = async (href: string, e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Always prevent default first to stop Next.js Link navigation
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Check navigation guard before proceeding
+    const canNavigate = await checkGuard(href);
+    if (!canNavigate) {
+      // Guard blocked navigation, don't proceed
+      return;
+    }
+    
+    // Navigation allowed, proceed with manual navigation
     hasManualClick.current = true;
     setCurrentPath(href);
+    
+    // Use Next.js router to navigate programmatically
+    try {
+      router.push(href);
+    } catch (error) {
+      console.error('Navigation failed:', error);
+      // Reset state on navigation failure
+      hasManualClick.current = false;
+    }
   };
   
   // Determine active states - ensure only one is active at a time
@@ -98,7 +122,7 @@ export default function Sidebar({ children }: SidebarProps) {
             <Link 
               href="/" 
               className={`navBtn ${isAboutActive ? 'active' : ''}`}
-              onClick={() => handleLinkClick('/')}
+              onClick={(e) => handleLinkClick('/', e)}
               aria-current={isAboutActive ? 'page' : undefined}
             >
               <InfoIcon />
@@ -111,7 +135,7 @@ export default function Sidebar({ children }: SidebarProps) {
             <Link 
               href="/timer" 
               className={`navBtn ${isTimerActive ? 'active' : ''}`}
-              onClick={() => handleLinkClick('/timer')}
+              onClick={(e) => handleLinkClick('/timer', e)}
               aria-current={isTimerActive ? 'page' : undefined}
             >
               <ClockIcon />
@@ -124,7 +148,7 @@ export default function Sidebar({ children }: SidebarProps) {
             <Link 
               href="/reports" 
               className={`navBtn ${isReportsActive ? 'active' : ''}`}
-              onClick={() => handleLinkClick('/reports')}
+              onClick={(e) => handleLinkClick('/reports', e)}
               aria-current={isReportsActive ? 'page' : undefined}
             >
               <ReportIcon />
@@ -137,7 +161,7 @@ export default function Sidebar({ children }: SidebarProps) {
             <Link 
               href="/sessions" 
               className={`navBtn ${isSessionsActive ? 'active' : ''}`}
-              onClick={() => handleLinkClick('/sessions')}
+              onClick={(e) => handleLinkClick('/sessions', e)}
               aria-current={isSessionsActive ? 'page' : undefined}
             >
               <ListIcon />
@@ -150,7 +174,7 @@ export default function Sidebar({ children }: SidebarProps) {
             <Link 
               href="/configure" 
               className={`navBtn ${isConfigureActive ? 'active' : ''}`}
-              onClick={() => handleLinkClick('/configure')}
+              onClick={(e) => handleLinkClick('/configure', e)}
               aria-current={isConfigureActive ? 'page' : undefined}
             >
               <GearIcon />
