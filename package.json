@@ -32,9 +32,9 @@
   "author": "Brandon Shoop <brandon@aglflorida.com>",
   "license": "MIT",
   "dependencies": {
+    "@electron/packager": "^20.3.0",
     "@electron/rebuild": "^4.0.1",
     "better-sqlite3": "^13.0.3",
-    "electron-packager": "^17.1.2",
     "jest": "^30.2.0",
     "next": "^15.5.4",
     "react": "^19.2.0",
@@ -64,7 +64,10 @@
   "packageManager": "npm@10.9.2",
   "allowScripts": {
     "@parcel/watcher@2.6.0": true,
-    "better-sqlite3@12.11.1": true,
-    "electron@38.8.6": true
+    "electron@38.8.6": true,
+    "better-sqlite3@13.0.3": true
+  },
+  "overrides": {
+    "glob": "^13.0.6"
   }
 }
