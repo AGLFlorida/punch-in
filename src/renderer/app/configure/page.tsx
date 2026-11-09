@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { CompanyModel } from 'src/main/services/company';
-import { ProjectModel } from 'src/main/services/project';
+import type { CompanyModel } from '../../../main/services/company';
+import type { ProjectModel } from '../../../main/services/project';
 import { NotifyBox } from '@/components/Notify';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';

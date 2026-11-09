@@ -27,7 +27,8 @@
     "rebuild:sqlite:electron": "electron-rebuild -f -w better-sqlite3",
     "prepackage": "npm run rebuild:sqlite:electron",
     "build:release": "npm run rebuild:sqlite:node && npm run rebuild:sqlite:electron && npm run build && npm run package",
-    "verify:dev": "npm run lint && npm run test"
+    "compile": "npx tsc --noEmit",
+    "verify:dev": "npm run lint && npm run compile && npm run test"
   },
   "author": "Brandon Shoop <brandon@aglflorida.com>",
   "license": "MIT",

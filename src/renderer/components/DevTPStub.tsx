@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { CompanyModel } from 'src/main/services/company';
-import { ProjectModel } from 'src/main/services/project';
-import { TaskModel } from 'src/main/services/task';
-import { SessionModel } from 'src/main/services/session';
-import { ReportModel } from 'src/main/services/report';
+import type { CompanyModel } from '../../main/services/company';
+import type { ProjectModel } from '../../main/services/project';
+import type { TaskModel } from '../../main/services/task';
+import type { SessionModel } from '../../main/services/session';
+import type { ReportModel } from '../../main/services/report';
 
 // TODO this could be tied more closely to the actual functionality but this bridges us for now.
 
