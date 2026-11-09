@@ -2,6 +2,8 @@
 
 # Punch In — Electron Time Tracker
 
+[![CI](https://github.com/AGLFlorida/punch-in/actions/workflows/development.yml/badge.svg)](https://github.com/AGLFlorida/punch-in/actions/workflows/development.yml)
+
 A focused, minimal Mac menu-bar Electron app for tracking time by project. It combines a small Next.js renderer (Timer & Reports UI) with a TypeScript Electron main process and a local SQLite database for durable storage. Now with 40% more vibe coding.
 
 Key ideas
