@@ -45,7 +45,7 @@
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@next/eslint-plugin-next": "^16.4.5",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/better-sqlite3": "^7.6.13",
@@ -63,9 +63,9 @@
   },
   "packageManager": "npm@10.9.2",
   "allowScripts": {
-    "@parcel/watcher@2.6.0": true,
-    "electron@38.8.6": true,
-    "better-sqlite3@13.0.3": true
+    "@parcel/watcher": true,
+    "better-sqlite3": true,
+    "electron": true
   },
   "overrides": {
     "glob": "^13.0.6"
