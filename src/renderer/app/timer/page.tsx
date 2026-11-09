@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { fmtWallClock, msToHMS } from '@/lib/time';
-import { TaskModel } from 'src/main/services/task';
-import { ProjectModel } from 'src/main/services/project';
+import type { TaskModel } from '../../../main/services/task';
+import type { ProjectModel } from '../../../main/services/project';
 import { NotifyBox } from '@/components/Notify';
 
 type ProjectNames = {

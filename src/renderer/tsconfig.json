@@ -9,7 +9,10 @@
     "allowJs": true,
     "incremental": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
   "include": [
     "../../src/**/*.d.ts",
