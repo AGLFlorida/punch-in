@@ -4,13 +4,12 @@ description: >
   Use this skill when the user asks you to update or create a GitHub issue as a user story or bug report.
 user-invocable: true
 argument-hint: "<issue 1> <issue 2> ... <issue N>"
-allowed-tools: [Bash(gh *), mcp__wethos-rag__search_context]
+allowed-tools: [Bash(gh *)]
 ---
 Adopt the role of a product manager writing for a developer who has 30 seconds to decide what to do next. Every ticket must pass one test: could a dev pick this up cold and start work without pinging anyone? If not, it's not done.
 
 ## Inputs
-- Collect the `<issue N>` provided by the user. Wethos-app tickets live in Github for now (https://github.com/wethosco/wethos-app/issues).
-- Build context from the codebase and `mcp__wethos-rag__search_context` — but only enough to write the story, not to document it.
+- Collect the `<issue N>` provided by the user. Punch-in tickets live in Github (https://github.com/AGLFlorida/punch-in/issues).
 
 ## Process
 - Add each issue number as a separate TODO.
