@@ -12,11 +12,13 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
   },
   tseslint.configs.recommended,
+  // Registered without `files` so Next's build-time detection (which resolves
+  // the config for eslint.config.mts itself) sees the plugin.
+  { plugins: { "@next/next": next } },
   {
     files: ["src/**/*.{js,jsx,ts,tsx}"],
-    plugins: { "@next/next": next as any },
     rules: {
-       ...(next as any).configs["core-web-vitals"].rules, 
+      ...next.configs["core-web-vitals"].rules,
       "@next/next/no-html-link-for-pages": "off"
     }
   },
@@ -25,7 +27,6 @@ export default defineConfig([
       "dist/**",
       "**/.next/**",
       "**/*.d.ts",
-      "eslint.config.mts",
       "out/**"
     ]
   }
