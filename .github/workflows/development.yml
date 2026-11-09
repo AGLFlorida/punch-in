@@ -1,4 +1,4 @@
-name: CI (development)
+name: CI
 
 on:
   push:
@@ -11,7 +11,6 @@ jobs:
   build:
     name: Lint, Test, Build
     runs-on: ubuntu-latest
-    environment: development
 
     steps:
       - name: Checkout
