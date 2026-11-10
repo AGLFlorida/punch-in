@@ -2,8 +2,9 @@ import { app } from 'electron';
 import { registerAppScheme, attachStaticHandler } from './protocol';
 import { createMainWindow } from './windows';
 import { setupTray } from './tray';
-// import { db } from './services/data';  
+// import { db } from './services/data';
 import { ServiceManager } from './services/manager';
+import { setupMidnightGuard } from './midnight-guard';
 import './handlers'; // registers ipcMain handlers (db, etc.)
 
 //let isQuitting = false;
@@ -15,6 +16,7 @@ app.whenReady().then(async () => {
   await attachStaticHandler(); // map app://-/... -> dist/renderer/...
   await createMainWindow();    // create and load UI
   setupTray();
+  setupMidnightGuard();
 });
 
 // Close the app

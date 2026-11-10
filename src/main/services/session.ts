@@ -73,12 +73,28 @@ export class SessionService implements ServiceInterface<SessionModel> {
   stop(): boolean {
     // TODO: this is a hammer. it closes ALL open sessions.
     const res = this.db?.prepare(`UPDATE session SET end_time = ? WHERE end_time IS NULL`).run(Date.now());
-    
+
     if (!res?.changes || res.changes < 1) {
       return false;
     }
 
     return true;
+  }
+
+  /**
+   * Close all open sessions with a specific end timestamp.
+   * Only closes sessions that started before the given endTime.
+   * Used by the midnight guard to stamp sessions at 23:59:59 of the day they started.
+   *
+   * @param endTime - epoch milliseconds to record as end_time
+   * @returns true if at least one session was closed
+   */
+  stopAt(endTime: number): boolean {
+    const res = this.db?.prepare(
+      `UPDATE session SET end_time = ? WHERE end_time IS NULL AND start_time < ?`
+    ).run(endTime, endTime);
+
+    return (res?.changes ?? 0) > 0;
   }
 
   get(): SessionModel[] {

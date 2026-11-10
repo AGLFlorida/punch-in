@@ -233,6 +233,52 @@ describe('SessionService', () => {
     });
   });
 
+  describe('stopAt', () => {
+    test('closes open sessions with the given end timestamp', () => {
+      const now = Date.now();
+      const startTime = now - 5000;
+      db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, startTime);
+
+      const endTime = startTime + 3000;
+      const result = service.stopAt(endTime);
+      expect(result).toBe(true);
+
+      const session = service.getOne();
+      expect(session).toBeNull(); // no open sessions remain
+    });
+
+    test('records the given end_time exactly', () => {
+      const now = Date.now();
+      const startTime = now - 5000;
+      const sessionInsert = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, startTime);
+      const sessionId = sessionInsert.lastInsertRowid as number;
+
+      const endTime = startTime + 2000;
+      service.stopAt(endTime);
+
+      const row = db.prepare('SELECT end_time FROM session WHERE id = ?').get(sessionId) as { end_time: number } | undefined;
+      expect(row?.end_time).toBe(endTime);
+    });
+
+    test('does not close a session when endTime <= start_time', () => {
+      const now = Date.now();
+      const startTime = now;
+      db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, startTime);
+
+      // endTime equals start_time — the WHERE condition (start_time < endTime) excludes this row
+      const result = service.stopAt(startTime);
+      expect(result).toBe(false);
+
+      const session = service.getOne();
+      expect(session).not.toBeNull(); // session still open
+    });
+
+    test('returns false when no open sessions exist', () => {
+      const result = service.stopAt(Date.now());
+      expect(result).toBe(false);
+    });
+  });
+
   describe('remove', () => {
     test('soft deletes session by setting is_active = 0', () => {
       const now = Date.now();
