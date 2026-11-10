@@ -1,9 +1,10 @@
-import { app } from 'electron';
+import { app, powerMonitor } from 'electron';
 import { registerAppScheme, attachStaticHandler } from './protocol';
 import { createMainWindow } from './windows';
-import { setupTray } from './tray';
-// import { db } from './services/data';  
+import { setupTray, invalidateTrayCache } from './tray';
+// import { db } from './services/data';
 import { ServiceManager } from './services/manager';
+import { setupMidnightGuard, teardownMidnightGuard } from './midnight-guard';
 import './handlers'; // registers ipcMain handlers (db, etc.)
 
 //let isQuitting = false;
@@ -15,6 +16,7 @@ app.whenReady().then(async () => {
   await attachStaticHandler(); // map app://-/... -> dist/renderer/...
   await createMainWindow();    // create and load UI
   setupTray();
+  setupMidnightGuard({ powerMonitor, onSessionClosed: invalidateTrayCache });
 });
 
 // Close the app
@@ -33,5 +35,6 @@ app.on('activate', async () => {
 app.on('before-quit', () => {
   //isQuitting = true;
   //if (state.running) stopTimer();
+  teardownMidnightGuard(); // stop midnight timer before DB closes
   services.closeDB();
 });
