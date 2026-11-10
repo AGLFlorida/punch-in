@@ -97,6 +97,39 @@ export class SessionService implements ServiceInterface<SessionModel> {
     return (res?.changes ?? 0) > 0;
   }
 
+  /**
+   * Close a specific open session at an exact end timestamp.
+   * Used by the midnight guard to stamp each cross-midnight session at the
+   * correct end-of-day for its own start date.
+   *
+   * @param id      - session ID to close
+   * @param endTime - epoch milliseconds to record as end_time
+   * @returns true if the session was updated
+   */
+  stopSessionAt(id: number, endTime: number): boolean {
+    const res = this.db?.prepare(
+      `UPDATE session SET end_time = ? WHERE id = ? AND end_time IS NULL`
+    ).run(endTime, id);
+
+    return (res?.changes ?? 0) > 0;
+  }
+
+  /**
+   * Return all open sessions (end_time IS NULL) whose start_time is strictly
+   * before the given cutoff (epoch ms).
+   * Used by the midnight guard to find sessions that crossed midnight.
+   */
+  getOpenRowsBeforeTime(cutoff: number): SessionRow[] {
+    const rows = this.db?.prepare(
+      `SELECT id, task_id, start_time, end_time
+       FROM session
+       WHERE end_time IS NULL AND start_time < ?
+       ORDER BY start_time ASC`
+    ).all(cutoff) as SessionRow[] | undefined;
+
+    return rows ?? [];
+  }
+
   get(): SessionModel[] {
     return this.db?.prepare(`SELECT id, task_id, start_time, end_time FROM session ORDER BY id DESC`).all() as SessionModel[];
   }

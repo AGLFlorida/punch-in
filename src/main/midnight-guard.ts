@@ -45,36 +45,49 @@ function tryInvalidateTrayCache(): void {
 }
 
 /**
- * Close any open session that started before today.
- * The session is stamped with 23:59:59.999 of the day it started.
+ * Close every open session that started before today.
+ * Each session is stamped with 23:59:59.999 of the day it started, so
+ * sessions that began on different prior days each receive their own
+ * correct end-of-day timestamp.
  *
  * Accepts an optional SessionService so callers (and tests) can inject one;
- * falls back to the singleton.
+ * falls back to the singleton. Passing `null` returns false immediately
+ * (no service available); `undefined` triggers the singleton fallback.
  *
- * @returns true if a session was closed
+ * @returns true if at least one session was closed
  */
 export function closeSessionsAcrossMidnight(session?: SessionService | null): boolean {
   // undefined → fall back to the singleton; null → no service, return early
   const svc = session === undefined ? ServiceManager.getInstance().session() : session;
   if (!svc) return false;
 
-  const openRow = svc.getOneRow();
-  if (!openRow) return false;
+  // Start of today (00:00:00.000 local time) — anything before this crossed midnight
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const cutoff = startOfToday.getTime();
 
-  if (!isCrossingMidnight(openRow.start_time)) return false;
+  const openRows = svc.getOpenRowsBeforeTime(cutoff);
+  if (openRows.length === 0) return false;
 
-  const startDate = new Date(openRow.start_time);
-  const eod = getEndOfDay(startDate);
-  const closed = svc.stopAt(eod);
+  let anyClosed = false;
+  for (const row of openRows) {
+    const startDate = new Date(row.start_time);
+    const eod = getEndOfDay(startDate);
+    if (svc.stopSessionAt(row.id, eod)) {
+      anyClosed = true;
+    }
+  }
 
-  if (closed) {
+  if (anyClosed) {
     tryInvalidateTrayCache();
   }
 
-  return closed;
+  return anyClosed;
 }
 
 let midnightTimer: ReturnType<typeof setTimeout> | null = null;
+// Guard flag: prevent stacking powerMonitor listeners if setupMidnightGuard is called more than once
+let guardInitialized = false;
 
 function scheduleMidnightClose(): void {
   if (midnightTimer) {
@@ -87,11 +100,14 @@ function scheduleMidnightClose(): void {
     closeSessionsAcrossMidnight();
     scheduleMidnightClose(); // reschedule for the next midnight
   }, ms);
+
+  // Allow Node/Electron to exit cleanly if the app quits while the timer is live
+  midnightTimer.unref?.();
 }
 
 /**
  * Set up the midnight auto-stop guard.
- * Call this once after the app is ready.
+ * Safe to call more than once — the powerMonitor listener is registered only once.
  *
  * - Closes any session that already crossed midnight (handles sleep / restart).
  * - Schedules a timer to auto-close at the next midnight.
@@ -103,6 +119,10 @@ export function setupMidnightGuard(): void {
 
   // Arm the midnight timer
   scheduleMidnightClose();
+
+  // Register the resume listener only once to avoid stacking
+  if (guardInitialized) return;
+  guardInitialized = true;
 
   // Re-arm after system wakes from sleep
   try {

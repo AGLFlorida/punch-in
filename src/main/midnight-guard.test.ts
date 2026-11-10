@@ -147,14 +147,60 @@ describe('closeSessionsAcrossMidnight', () => {
     threeDaysAgo.setHours(21, 0, 0, 0);
     const startTime = threeDaysAgo.getTime();
 
-    db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, startTime);
+    const sessionId = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, startTime).lastInsertRowid as number;
 
     const result = closeSessionsAcrossMidnight(sessionSvc);
     expect(result).toBe(true);
 
     const expectedEod = getEndOfDay(threeDaysAgo);
-    const row = db.prepare('SELECT end_time FROM session WHERE task_id = ?').get(testTaskId) as { end_time: number } | undefined;
+    const row = db.prepare('SELECT end_time FROM session WHERE id = ?').get(sessionId) as { end_time: number } | undefined;
     expect(row?.end_time).toBe(expectedEod);
+  });
+
+  test('closes multiple open sessions from different prior days with their own end-of-day timestamps', () => {
+    // Session A: 3 days ago
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    threeDaysAgo.setHours(22, 0, 0, 0);
+
+    // Session B: yesterday
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(23, 0, 0, 0);
+
+    const idA = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, threeDaysAgo.getTime()).lastInsertRowid as number;
+    const idB = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, yesterday.getTime()).lastInsertRowid as number;
+
+    const result = closeSessionsAcrossMidnight(sessionSvc);
+    expect(result).toBe(true);
+
+    // Each session must receive the EoD of its own start day
+    const rowA = db.prepare('SELECT end_time FROM session WHERE id = ?').get(idA) as { end_time: number };
+    const rowB = db.prepare('SELECT end_time FROM session WHERE id = ?').get(idB) as { end_time: number };
+
+    expect(rowA.end_time).toBe(getEndOfDay(threeDaysAgo));
+    expect(rowB.end_time).toBe(getEndOfDay(yesterday));
+
+    // No open sessions remain
+    expect(sessionSvc.getOpenRowsBeforeTime(Date.now() + 1)).toHaveLength(0);
+  });
+
+  test('leaves sessions that started today untouched', () => {
+    // Open session from yesterday
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(20, 0, 0, 0);
+    db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, yesterday.getTime());
+
+    // Open session started today (should not be closed)
+    const todayStart = Date.now() - 1000;
+    const todayId = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, todayStart).lastInsertRowid as number;
+
+    closeSessionsAcrossMidnight(sessionSvc);
+
+    // The today session must remain open
+    const todayRow = db.prepare('SELECT end_time FROM session WHERE id = ?').get(todayId) as { end_time: number | null };
+    expect(todayRow.end_time).toBeNull();
   });
 
   test('returns false when session service is null', () => {
