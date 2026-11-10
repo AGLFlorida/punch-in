@@ -79,14 +79,8 @@ export function closeSessionsAcrossMidnight(session?: SessionService | null): bo
 }
 
 let midnightTimer: ReturnType<typeof setTimeout> | null = null;
-/**
- * Tracks whether the powerMonitor listener has been registered.
- * setupMidnightGuard is designed to be called once per app lifecycle;
- * this flag prevents duplicate listener registration if it is ever called
- * more than once (e.g. via hot-reload).  There is intentionally no reset
- * path — Electron restarts the entire process to reinitialise the app.
- */
-let guardInitialized = false;
+/** True once the powerMonitor resume listener has been registered. */
+let resumeListenerRegistered = false;
 
 function scheduleMidnightClose(): void {
   if (midnightTimer) {
@@ -123,13 +117,15 @@ export interface MidnightGuardOptions {
 
 /**
  * Set up the midnight auto-stop guard.
- * Safe to call more than once — the powerMonitor listener is registered only once.
  *
- * - Closes any session that already crossed midnight (handles sleep / restart).
- * - Schedules a timer to auto-close at the next midnight.
- * - Re-arms after each midnight and after the system resumes from sleep.
+ * - Updates the `onSessionClosed` callback and re-arms the midnight timer on
+ *   every call (safe to call more than once).
+ * - Registers the `powerMonitor` resume listener at most once: on the first
+ *   call that provides a `powerMonitor`. Subsequent calls without one do not
+ *   remove an already-registered listener; subsequent calls with one are
+ *   no-ops for listener registration.
  *
- * @param options - injectable Electron/tray dependencies (injected by main process)
+ * @param options - injectable Electron/tray dependencies (provided by main process)
  */
 export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
   _onSessionClosed = options.onSessionClosed;
@@ -137,16 +133,15 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
   // Handle any session that already spans midnight (startup or post-sleep)
   closeSessionsAcrossMidnight();
 
-  // Arm the midnight timer
+  // Arm the midnight timer (clears any previous timer first)
   scheduleMidnightClose();
 
-  // Register the resume listener only once to avoid stacking
-  if (guardInitialized) return;
-  guardInitialized = true;
-
-  // Re-arm after system wakes from sleep
-  options.powerMonitor?.on('resume', () => {
-    closeSessionsAcrossMidnight();
-    scheduleMidnightClose();
-  });
+  // Register the resume listener the first time a powerMonitor is supplied
+  if (!resumeListenerRegistered && options.powerMonitor) {
+    resumeListenerRegistered = true;
+    options.powerMonitor.on('resume', () => {
+      closeSessionsAcrossMidnight();
+      scheduleMidnightClose();
+    });
+  }
 }
