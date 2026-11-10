@@ -128,7 +128,11 @@ export interface MidnightGuardOptions {
  * @param options - injectable Electron/tray dependencies (provided by main process)
  */
 export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
-  _onSessionClosed = options.onSessionClosed;
+  // Only overwrite the callback when explicitly provided; omitting it on a
+  // subsequent call preserves the previously registered callback.
+  if (options.onSessionClosed !== undefined) {
+    _onSessionClosed = options.onSessionClosed;
+  }
 
   // Handle any session that already spans midnight (startup or post-sleep)
   closeSessionsAcrossMidnight();
@@ -140,8 +144,11 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
   if (!resumeListenerRegistered && options.powerMonitor) {
     resumeListenerRegistered = true;
     options.powerMonitor.on('resume', () => {
-      closeSessionsAcrossMidnight();
-      scheduleMidnightClose();
+      try {
+        closeSessionsAcrossMidnight();
+      } finally {
+        scheduleMidnightClose(); // always reschedule, even if close throws
+      }
     });
   }
 }
