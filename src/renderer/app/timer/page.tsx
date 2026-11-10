@@ -170,8 +170,16 @@ export default function TimerPage() {
         const t = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getTasks) ? await (window as any).tp.getTasks() : [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const p = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
-  setProjects(p);
-  setTasks(t);
+        setProjects(p);
+        // Deduplicate by task ID to guard against any duplicate entries from
+        // previous sessions before this bug was fixed.
+        const seen = new Set<number>();
+        const deduped = (t as TaskModel[]).filter((task: TaskModel) => {
+          if (task.id === undefined || seen.has(task.id)) return false;
+          seen.add(task.id);
+          return true;
+        });
+        setTasks(deduped);
         
         p.forEach((p: ProjectModel) => {
           if (p.id && projectNames.current) projectNames.current[p.id] = p.name;
@@ -375,7 +383,11 @@ export default function TimerPage() {
         return;
       }
       
-      // Update currentTask with selected project and task name
+      // Update currentTask with selected project and task name.
+      // Do not forward the previous task id: the service-layer dedup guard in
+      // TaskService.set already reuses an existing task when name+project_id
+      // match, so forwarding the id here would cause sessions to be logged
+      // against the wrong task when the user changes the name or project.
       setCurrentTask({
         name: taskName.trim(),
         project_id: selectedProjectId
