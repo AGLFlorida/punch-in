@@ -81,6 +81,8 @@ export function closeSessionsAcrossMidnight(session?: SessionService | null): bo
 let midnightTimer: ReturnType<typeof setTimeout> | null = null;
 /** True once the powerMonitor resume listener has been registered. */
 let resumeListenerRegistered = false;
+/** True after teardownMidnightGuard has been called; prevents stale timer/resume callbacks. */
+let _tornDown = false;
 
 function scheduleMidnightClose(): void {
   if (midnightTimer) {
@@ -130,6 +132,8 @@ export interface MidnightGuardOptions {
  * @param options - injectable Electron/tray dependencies (provided by main process)
  */
 export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
+  _tornDown = false;
+
   // Only overwrite the callback when explicitly provided; omitting it on a
   // subsequent call preserves the previously registered callback.
   if (options.onSessionClosed !== undefined) {
@@ -153,12 +157,13 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
   if (!resumeListenerRegistered && options.powerMonitor) {
     resumeListenerRegistered = true;
     options.powerMonitor.on('resume', () => {
+      if (_tornDown) return; // guard was shut down; ignore stale events
       try {
         closeSessionsAcrossMidnight();
       } catch (err) {
         console.error('[midnight-guard] failed to auto-close sessions on resume:', err);
       } finally {
-        scheduleMidnightClose(); // always reschedule, even if close throws
+        if (!_tornDown) scheduleMidnightClose(); // reschedule only if still active
       }
     });
   }
@@ -170,8 +175,11 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
  * prevent the timer from firing after the DB has been closed.
  */
 export function teardownMidnightGuard(): void {
+  _tornDown = true;
   if (midnightTimer) {
     clearTimeout(midnightTimer);
     midnightTimer = null;
   }
+  // Reset so a subsequent setupMidnightGuard call can re-register the listener
+  resumeListenerRegistered = false;
 }
