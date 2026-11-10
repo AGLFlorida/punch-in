@@ -19,11 +19,11 @@ export function validateTaskName(name: string): string | null {
   if (!name || !name.trim()) {
     return 'Task name is required.';
   }
-  if (name.length > TASK_NAME_MAX_LEN) {
-    return `Task name must be ${TASK_NAME_MAX_LEN} characters or fewer.`;
-  }
   if (hasControlChars(name)) {
     return 'Task name contains disallowed characters.';
+  }
+  if (name.length > TASK_NAME_MAX_LEN) {
+    return `Task name must be ${TASK_NAME_MAX_LEN} characters or fewer.`;
   }
   return null;
 }

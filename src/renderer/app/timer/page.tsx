@@ -242,13 +242,13 @@ export default function TimerPage() {
   const onStart = async () => {
     // For new tasks, ensure we use the selected project and task name
     if (newTask) {
-      const nameErr = validateTaskName(taskName ?? '');
+      const nameErr = validateTaskName(taskName);
       if (nameErr) {
         setTaskNameError(nameErr);
         return;
       }
-      if (!selectedProjectId || !taskName?.trim()) {
-        console.error("Could not start: missing project or task name");
+      if (!selectedProjectId) {
+        console.error("Could not start: missing project");
         return;
       }
       
@@ -347,7 +347,7 @@ export default function TimerPage() {
     }
 
     // is this a new task?
-    if (newTask && currentTask.current?.project_id && currentTask.current?.project_id > -1) {
+    if (newTask && taskName.trim() && currentTask.current?.project_id && currentTask.current?.project_id > -1) {
       return true;
     }
 
@@ -357,7 +357,7 @@ export default function TimerPage() {
     }
 
     return false;
-  }, [taskNameError, newTask, currentTask.current?.project_id, currentTask.current?.id, tasks.length]);
+  }, [taskNameError, taskName, newTask, currentTask.current?.project_id, currentTask.current?.id, tasks.length]);
 
   // useEffect(() => {
   //   console.log("current task:", JSON.stringify(currentTask));
@@ -407,7 +407,7 @@ export default function TimerPage() {
                     <input
                       type="text"
                       placeholder={'enter task name'}
-                      value={taskName ?? ''}
+                      value={taskName}
                       onChange={(e) => {
                         const val = e.target.value;
                         setTaskName(val);
@@ -425,11 +425,11 @@ export default function TimerPage() {
                       }
                       <span
                         id="task-name-counter"
-                        style={{ marginLeft: 'auto', color: (taskName ?? '').length > TASK_NAME_MAX_LEN ? 'var(--color-danger, #c0392b)' : 'inherit' }}
+                        style={{ marginLeft: 'auto', color: taskName.length > TASK_NAME_MAX_LEN ? 'var(--color-danger, #c0392b)' : 'inherit' }}
                         aria-live="polite"
-                        aria-label={`${(taskName ?? '').length} of ${TASK_NAME_MAX_LEN} characters used`}
+                        aria-label={`${taskName.length} of ${TASK_NAME_MAX_LEN} characters used`}
                       >
-                        {(taskName ?? '').length}/{TASK_NAME_MAX_LEN}
+                        {taskName.length}/{TASK_NAME_MAX_LEN}
                       </span>
                     </div>
                   </div>

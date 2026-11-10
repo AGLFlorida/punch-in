@@ -116,4 +116,13 @@ describe('TimerPage – task name validation', () => {
     const startBtn = screen.getByRole('button', { name: /start/i });
     await waitFor(() => expect(startBtn).toBeDisabled());
   });
+
+  test('Start button is disabled when task name is empty even with project selected', async () => {
+    // Project must be loaded so the UI can show project options
+    mockGetProjectList.mockResolvedValue(PROJECT_LIST);
+    await renderAndWait();
+    // Task name input starts empty; Start must remain disabled
+    const startBtn = screen.getByRole('button', { name: /start/i });
+    expect(startBtn).toBeDisabled();
+  });
 });
