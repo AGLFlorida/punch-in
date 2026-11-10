@@ -273,6 +273,23 @@ describe('SessionService', () => {
       expect(session).not.toBeNull(); // session still open
     });
 
+    test('stamps all matching sessions with the same endTime', () => {
+      // Two sessions from different "past" moments both receive the same end stamp
+      const now = Date.now();
+      const id1 = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, now - 10000).lastInsertRowid as number;
+      const id2 = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, now - 5000).lastInsertRowid as number;
+
+      const endTime = now - 1000;
+      const result = service.stopAt(endTime);
+      expect(result).toBe(true);
+
+      const r1 = db.prepare('SELECT end_time FROM session WHERE id = ?').get(id1) as { end_time: number };
+      const r2 = db.prepare('SELECT end_time FROM session WHERE id = ?').get(id2) as { end_time: number };
+      // Both sessions get the same end_time; use stopSessionAt when per-session stamps are needed
+      expect(r1.end_time).toBe(endTime);
+      expect(r2.end_time).toBe(endTime);
+    });
+
     test('returns false when no open sessions exist', () => {
       const result = service.stopAt(Date.now());
       expect(result).toBe(false);

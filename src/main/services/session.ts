@@ -82,9 +82,10 @@ export class SessionService implements ServiceInterface<SessionModel> {
   }
 
   /**
-   * Close all open sessions with a specific end timestamp.
-   * Only closes sessions that started before the given endTime.
-   * Used by the midnight guard to stamp sessions at 23:59:59 of the day they started.
+   * Close all open sessions whose start_time is strictly before endTime,
+   * stamping each with the same endTime value.
+   * Because every matching session receives the same end timestamp, callers
+   * that need per-session end times should use `stopSessionAt` instead.
    *
    * @param endTime - epoch milliseconds to record as end_time
    * @returns true if at least one session was closed
