@@ -4,7 +4,7 @@ import { createMainWindow } from './windows';
 import { setupTray, invalidateTrayCache } from './tray';
 // import { db } from './services/data';
 import { ServiceManager } from './services/manager';
-import { setupMidnightGuard } from './midnight-guard';
+import { setupMidnightGuard, teardownMidnightGuard } from './midnight-guard';
 import './handlers'; // registers ipcMain handlers (db, etc.)
 
 //let isQuitting = false;
@@ -35,5 +35,6 @@ app.on('activate', async () => {
 app.on('before-quit', () => {
   //isQuitting = true;
   //if (state.running) stopTimer();
+  teardownMidnightGuard(); // stop midnight timer before DB closes
   services.closeDB();
 });

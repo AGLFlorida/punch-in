@@ -146,7 +146,10 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
   // Arm the midnight timer (clears any previous timer first)
   scheduleMidnightClose();
 
-  // Register the resume listener the first time a powerMonitor is supplied
+  // Register the resume listener the first time a powerMonitor is supplied.
+  // setupMidnightGuard is designed to be called once per app lifecycle from
+  // the main process (src/main/index.ts); the flag prevents double-registration
+  // if it were ever called again with the same powerMonitor.
   if (!resumeListenerRegistered && options.powerMonitor) {
     resumeListenerRegistered = true;
     options.powerMonitor.on('resume', () => {
@@ -158,5 +161,17 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
         scheduleMidnightClose(); // always reschedule, even if close throws
       }
     });
+  }
+}
+
+/**
+ * Stop the midnight timer.
+ * Call this during app shutdown (e.g. from the `before-quit` handler) to
+ * prevent the timer from firing after the DB has been closed.
+ */
+export function teardownMidnightGuard(): void {
+  if (midnightTimer) {
+    clearTimeout(midnightTimer);
+    midnightTimer = null;
   }
 }
