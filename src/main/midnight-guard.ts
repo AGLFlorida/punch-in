@@ -79,8 +79,9 @@ export function closeSessionsAcrossMidnight(session?: SessionService | null): bo
 }
 
 let midnightTimer: ReturnType<typeof setTimeout> | null = null;
-/** True once the powerMonitor resume listener has been registered. */
-let resumeListenerRegistered = false;
+/** Stored so teardownMidnightGuard can remove it via powerMonitor.off. */
+let _powerMonitor: PowerMonitor | undefined;
+let _resumeListener: (() => void) | undefined;
 /** True after teardownMidnightGuard has been called; prevents stale timer/resume callbacks. */
 let _tornDown = false;
 
@@ -97,7 +98,7 @@ function scheduleMidnightClose(): void {
     } catch (err) {
       console.error('[midnight-guard] failed to auto-close sessions at midnight:', err);
     } finally {
-      scheduleMidnightClose(); // always reschedule, even if close throws
+      if (!_tornDown) scheduleMidnightClose(); // reschedule only if still active
     }
   }, ms);
 
@@ -124,10 +125,8 @@ export interface MidnightGuardOptions {
  *
  * - Updates the `onSessionClosed` callback and re-arms the midnight timer on
  *   every call (safe to call more than once).
- * - Registers the `powerMonitor` resume listener at most once: on the first
- *   call that provides a `powerMonitor`. Subsequent calls without one do not
- *   remove an already-registered listener; subsequent calls with one are
- *   no-ops for listener registration.
+ * - Registers the `powerMonitor` resume listener at most once per lifecycle.
+ *   teardownMidnightGuard removes the listener so a fresh setup can re-register.
  *
  * @param options - injectable Electron/tray dependencies (provided by main process)
  */
@@ -150,13 +149,12 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
   // Arm the midnight timer (clears any previous timer first)
   scheduleMidnightClose();
 
-  // Register the resume listener the first time a powerMonitor is supplied.
-  // setupMidnightGuard is designed to be called once per app lifecycle from
-  // the main process (src/main/index.ts); the flag prevents double-registration
-  // if it were ever called again with the same powerMonitor.
-  if (!resumeListenerRegistered && options.powerMonitor) {
-    resumeListenerRegistered = true;
-    options.powerMonitor.on('resume', () => {
+  // Register the resume listener only when a powerMonitor is supplied and no
+  // listener is already active. teardownMidnightGuard removes the previous
+  // listener via powerMonitor.off, so this is safe to call after a teardown.
+  if (!_resumeListener && options.powerMonitor) {
+    _powerMonitor = options.powerMonitor;
+    _resumeListener = () => {
       if (_tornDown) return; // guard was shut down; ignore stale events
       try {
         closeSessionsAcrossMidnight();
@@ -165,14 +163,16 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
       } finally {
         if (!_tornDown) scheduleMidnightClose(); // reschedule only if still active
       }
-    });
+    };
+    _powerMonitor.on('resume', _resumeListener);
   }
 }
 
 /**
- * Stop the midnight timer.
+ * Stop the midnight timer and remove the powerMonitor listener.
  * Call this during app shutdown (e.g. from the `before-quit` handler) to
- * prevent the timer from firing after the DB has been closed.
+ * prevent the timer or resume handler from firing after the DB has been closed.
+ * After teardown, setupMidnightGuard can be called again to re-arm the guard.
  */
 export function teardownMidnightGuard(): void {
   _tornDown = true;
@@ -180,6 +180,11 @@ export function teardownMidnightGuard(): void {
     clearTimeout(midnightTimer);
     midnightTimer = null;
   }
-  // Reset so a subsequent setupMidnightGuard call can re-register the listener
-  resumeListenerRegistered = false;
+  // Remove the stored listener so we don't leak it and so a subsequent
+  // setupMidnightGuard call can register a new one cleanly.
+  if (_powerMonitor && _resumeListener) {
+    _powerMonitor.off('resume', _resumeListener);
+  }
+  _powerMonitor = undefined;
+  _resumeListener = undefined;
 }
