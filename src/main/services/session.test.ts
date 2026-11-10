@@ -290,6 +290,15 @@ describe('SessionService', () => {
       expect(r2.end_time).toBe(endTime);
     });
 
+    test('does not close soft-deleted open sessions (is_active = 0)', () => {
+      const now = Date.now();
+      const id = db.prepare('INSERT INTO session (task_id, start_time, is_active) VALUES (?, ?, 0)').run(testTaskId, now - 5000).lastInsertRowid as number;
+      const result = service.stopAt(now);
+      expect(result).toBe(false);
+      const row = db.prepare('SELECT end_time FROM session WHERE id = ?').get(id) as { end_time: number | null };
+      expect(row.end_time).toBeNull();
+    });
+
     test('returns false when no open sessions exist', () => {
       const result = service.stopAt(Date.now());
       expect(result).toBe(false);
@@ -316,6 +325,15 @@ describe('SessionService', () => {
 
       const result = service.stopSessionAt(sessionId, now);
       expect(result).toBe(false);
+    });
+
+    test('does not close a soft-deleted open session (is_active = 0)', () => {
+      const now = Date.now();
+      const id = db.prepare('INSERT INTO session (task_id, start_time, is_active) VALUES (?, ?, 0)').run(testTaskId, now - 5000).lastInsertRowid as number;
+      const result = service.stopSessionAt(id, now);
+      expect(result).toBe(false);
+      const row = db.prepare('SELECT end_time FROM session WHERE id = ?').get(id) as { end_time: number | null };
+      expect(row.end_time).toBeNull();
     });
 
     test('returns false for a non-existent session id', () => {
@@ -351,6 +369,13 @@ describe('SessionService', () => {
       const now = Date.now();
       db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)').run(testTaskId, now - 5000, now - 1000);
 
+      const result = service.getOpenRowsBeforeTime(now);
+      expect(result).toHaveLength(0);
+    });
+
+    test('excludes soft-deleted open sessions (is_active = 0)', () => {
+      const now = Date.now();
+      db.prepare('INSERT INTO session (task_id, start_time, is_active) VALUES (?, ?, 0)').run(testTaskId, now - 5000);
       const result = service.getOpenRowsBeforeTime(now);
       expect(result).toHaveLength(0);
     });

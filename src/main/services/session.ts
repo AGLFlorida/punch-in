@@ -92,7 +92,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
    */
   stopAt(endTime: number): boolean {
     const res = this.db?.prepare(
-      `UPDATE session SET end_time = ? WHERE end_time IS NULL AND start_time < ?`
+      `UPDATE session SET end_time = ? WHERE end_time IS NULL AND is_active = 1 AND start_time < ?`
     ).run(endTime, endTime);
 
     return (res?.changes ?? 0) > 0;
@@ -109,7 +109,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
    */
   stopSessionAt(id: number, endTime: number): boolean {
     const res = this.db?.prepare(
-      `UPDATE session SET end_time = ? WHERE id = ? AND end_time IS NULL`
+      `UPDATE session SET end_time = ? WHERE id = ? AND end_time IS NULL AND is_active = 1`
     ).run(endTime, id);
 
     return (res?.changes ?? 0) > 0;
@@ -124,7 +124,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
     const rows = this.db?.prepare(
       `SELECT id, task_id, start_time, end_time
        FROM session
-       WHERE end_time IS NULL AND start_time < ?
+       WHERE end_time IS NULL AND is_active = 1 AND start_time < ?
        ORDER BY start_time ASC`
     ).all(cutoff) as SessionRow[] | undefined;
 

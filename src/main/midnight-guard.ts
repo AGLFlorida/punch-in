@@ -76,11 +76,7 @@ export function closeSessionsAcrossMidnight(session?: SessionService | null): bo
   startOfToday.setHours(0, 0, 0, 0);
   const cutoff = startOfToday.getTime();
 
-  // getOpenRowsBeforeTime ensures start_time < cutoff; isCrossingMidnight is
-  // applied here as an explicit guard so the midnight-crossing invariant is
-  // visible at this layer and not solely delegated to the SQL query.
-  const openRows = svc.getOpenRowsBeforeTime(cutoff)
-    .filter(row => isCrossingMidnight(row.start_time));
+  const openRows = svc.getOpenRowsBeforeTime(cutoff);
 
   if (openRows.length === 0) return false;
 
