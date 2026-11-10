@@ -1,4 +1,4 @@
-import { validateTaskName, TASK_NAME_MAX_LEN } from './validation';
+import { validateTaskName } from './validation';
 
 describe('validateTaskName', () => {
   test('returns null for a valid short name', () => {
