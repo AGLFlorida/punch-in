@@ -137,7 +137,11 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
   }
 
   // Handle any session that already spans midnight (startup or post-sleep)
-  closeSessionsAcrossMidnight();
+  try {
+    closeSessionsAcrossMidnight();
+  } catch (err) {
+    console.error('[midnight-guard] failed to auto-close sessions at startup:', err);
+  }
 
   // Arm the midnight timer (clears any previous timer first)
   scheduleMidnightClose();
