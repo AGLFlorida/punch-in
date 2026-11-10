@@ -74,6 +74,115 @@ jest.mock('@/components/CustomImage', () => ({
   TrashIcon: () => <svg data-testid="trash-icon" />,
 }));
 
+const FIXTURE_COMPANIES = [
+  { id: 1, name: 'Acme Inc' },
+  { id: 2, name: 'Freelance' },
+];
+const FIXTURE_PROJECTS = [
+  { id: 10, name: 'Web App', company_id: 1 },
+  { id: 11, name: 'Mobile App', company_id: 1 },
+  { id: 20, name: 'Personal Site', company_id: 2 },
+];
+
+describe('ConfigurePage - Grouped layout and UX', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetCompanyList.mockResolvedValue(FIXTURE_COMPANIES);
+    mockGetProjectList.mockResolvedValue(FIXTURE_PROJECTS);
+  });
+
+  test('shows empty-state container when no companies exist', async () => {
+    mockGetCompanyList.mockResolvedValue([]);
+    mockGetProjectList.mockResolvedValue([]);
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId('empty-company-state')).toBeInTheDocument();
+    });
+  });
+
+  test('renders an input for every loaded company and project', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      const inputs = screen.getAllByRole('textbox');
+      // One input per company + one per project
+      expect(inputs.length).toBe(FIXTURE_COMPANIES.length + FIXTURE_PROJECTS.length);
+    });
+  });
+
+  test('"Add project" button appears once per saved company', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      const addProjectBtns = screen.getAllByText('+ Add project');
+      expect(addProjectBtns.length).toBe(FIXTURE_COMPANIES.length);
+    });
+  });
+
+  test('clicking "Add project" adds a blank project input', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByText('+ Add project').length).toBe(FIXTURE_COMPANIES.length);
+    });
+    const inputsBefore = screen.getAllByRole('textbox').length;
+    const addProjectBtns = screen.getAllByText('+ Add project');
+    fireEvent.click(addProjectBtns[0]);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('textbox').length).toBe(inputsBefore + 1);
+    });
+  });
+
+  test('new unsaved company shows the "save first" hint element', async () => {
+    mockGetCompanyList.mockResolvedValue([]);
+    mockGetProjectList.mockResolvedValue([]);
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId('empty-company-state')).toBeInTheDocument();
+    });
+    const addCompanyBtn = screen.getByText('+ Add company');
+    fireEvent.click(addCompanyBtn);
+    await waitFor(() => {
+      expect(screen.getByTestId('new-company-hint')).toBeInTheDocument();
+    });
+  });
+
+  test('adding an unassigned project shows the unassigned-projects heading', async () => {
+    mockGetCompanyList.mockResolvedValue([{ id: 1, name: 'Acme Inc' }]);
+    mockGetProjectList.mockResolvedValue([{ id: 10, name: 'Web App', company_id: 1 }]);
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByText('+ Add project').length).toBe(1);
+    });
+    const addUnassigned = screen.getByText('+ Add unassigned project');
+    fireEvent.click(addUnassigned);
+    await waitFor(() => {
+      expect(screen.getByTestId('unassigned-projects-heading')).toBeInTheDocument();
+    });
+  });
+
+  test('Save button is disabled when no unsaved changes', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByRole('textbox').length).toBe(
+        FIXTURE_COMPANIES.length + FIXTURE_PROJECTS.length
+      );
+    });
+    const saveBtn = screen.getByText('Save');
+    expect(saveBtn).toBeDisabled();
+  });
+
+  test('Save button is enabled after adding a company', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByText('+ Add project').length).toBe(FIXTURE_COMPANIES.length);
+    });
+    const addCompanyBtn = screen.getByText('+ Add company');
+    fireEvent.click(addCompanyBtn);
+    await waitFor(() => {
+      expect(screen.getByText('Save')).not.toBeDisabled();
+    });
+  });
+});
+
 describe('ConfigurePage - Unsaved Changes Detection', () => {
   beforeEach(() => {
     jest.clearAllMocks();
