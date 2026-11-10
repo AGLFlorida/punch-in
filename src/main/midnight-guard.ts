@@ -1,5 +1,6 @@
 import { ServiceManager } from './services/manager';
 import type { SessionService } from './services/session';
+import type { PowerMonitor } from 'electron';
 
 /**
  * Returns epoch ms for 23:59:59.999 of the given date in local time.
@@ -30,26 +31,8 @@ export function isCrossingMidnight(startTime: number, reference: Date = new Date
   return startDate.toDateString() !== reference.toDateString();
 }
 
-/**
- * Lazily require the tray module and invalidate its cache.
- * No-ops if the tray is unavailable (e.g. in test environment).
- *
- * Note: `require()` is used here rather than a top-level `import` because
- * this module is loaded in both the Electron main process and the Jest/Node
- * test environment.  Importing `./tray` at the module level would cause
- * Electron APIs (`Tray`, `nativeImage`) to be evaluated at load time, which
- * crashes in Node.  The same lazy-require pattern is used in
- * `src/main/handlers/session.ts` for the same reason.
- */
-function tryInvalidateTrayCache(): void {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { invalidateTrayCache } = require('./tray');
-    invalidateTrayCache();
-  } catch {
-    // Not available outside Electron (tests, etc.)
-  }
-}
+// Injected by setupMidnightGuard; called whenever one or more sessions are auto-closed
+let _onSessionClosed: (() => void) | undefined;
 
 /**
  * Close every open session that started on a prior calendar day.
@@ -77,12 +60,11 @@ export function closeSessionsAcrossMidnight(session?: SessionService | null): bo
   const cutoff = startOfToday.getTime();
 
   const openRows = svc.getOpenRowsBeforeTime(cutoff);
-
   if (openRows.length === 0) return false;
 
   let anyClosed = false;
   for (const row of openRows) {
-    // Stamp at 23:59:59.999 of the row's own start day
+    // Stamp at 23:59:59.999 of the row's own start day (per spec)
     const eod = getEndOfDay(new Date(row.start_time));
     if (svc.stopSessionAt(row.id, eod)) {
       anyClosed = true;
@@ -90,7 +72,7 @@ export function closeSessionsAcrossMidnight(session?: SessionService | null): bo
   }
 
   if (anyClosed) {
-    tryInvalidateTrayCache();
+    _onSessionClosed?.();
   }
 
   return anyClosed;
@@ -122,6 +104,20 @@ function scheduleMidnightClose(): void {
   midnightTimer.unref?.();
 }
 
+export interface MidnightGuardOptions {
+  /**
+   * Electron powerMonitor instance for system-sleep/resume detection.
+   * When omitted the guard still runs via the midnight timer but cannot
+   * react to wakeups.
+   */
+  powerMonitor?: PowerMonitor;
+  /**
+   * Callback invoked after one or more sessions are auto-closed at midnight.
+   * Typically wired to `invalidateTrayCache` in the main process.
+   */
+  onSessionClosed?: () => void;
+}
+
 /**
  * Set up the midnight auto-stop guard.
  * Safe to call more than once — the powerMonitor listener is registered only once.
@@ -129,8 +125,12 @@ function scheduleMidnightClose(): void {
  * - Closes any session that already crossed midnight (handles sleep / restart).
  * - Schedules a timer to auto-close at the next midnight.
  * - Re-arms after each midnight and after the system resumes from sleep.
+ *
+ * @param options - injectable Electron/tray dependencies (injected by main process)
  */
-export function setupMidnightGuard(): void {
+export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
+  _onSessionClosed = options.onSessionClosed;
+
   // Handle any session that already spans midnight (startup or post-sleep)
   closeSessionsAcrossMidnight();
 
@@ -141,17 +141,9 @@ export function setupMidnightGuard(): void {
   if (guardInitialized) return;
   guardInitialized = true;
 
-  // Re-arm after system wakes from sleep.
-  // `powerMonitor` is loaded lazily (same rationale as tryInvalidateTrayCache)
-  // so this module remains importable in the Node/Jest test environment.
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { powerMonitor } = require('electron');
-    powerMonitor.on('resume', () => {
-      closeSessionsAcrossMidnight();
-      scheduleMidnightClose();
-    });
-  } catch {
-    // Not available outside Electron (tests, etc.)
-  }
+  // Re-arm after system wakes from sleep
+  options.powerMonitor?.on('resume', () => {
+    closeSessionsAcrossMidnight();
+    scheduleMidnightClose();
+  });
 }

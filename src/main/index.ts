@@ -1,7 +1,7 @@
-import { app } from 'electron';
+import { app, powerMonitor } from 'electron';
 import { registerAppScheme, attachStaticHandler } from './protocol';
 import { createMainWindow } from './windows';
-import { setupTray } from './tray';
+import { setupTray, invalidateTrayCache } from './tray';
 // import { db } from './services/data';
 import { ServiceManager } from './services/manager';
 import { setupMidnightGuard } from './midnight-guard';
@@ -16,7 +16,7 @@ app.whenReady().then(async () => {
   await attachStaticHandler(); // map app://-/... -> dist/renderer/...
   await createMainWindow();    // create and load UI
   setupTray();
-  setupMidnightGuard();
+  setupMidnightGuard({ powerMonitor, onSessionClosed: invalidateTrayCache });
 });
 
 // Close the app
