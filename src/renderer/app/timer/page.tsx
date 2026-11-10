@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { fmtWallClock, msToHMS } from '@/lib/time';
+import { validateTaskName, TASK_NAME_MAX_LEN } from '@/lib/validation';
 import type { TaskModel } from '../../../main/services/task';
 import type { ProjectModel } from '../../../main/services/project';
 import { NotifyBox } from '@/components/Notify';
@@ -113,6 +114,7 @@ export default function TimerPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<number | ''>('');
   const [newTask, toggleNewTask] = useState<boolean>(tasks.length === 0);
   const [taskName, setTaskName] = useState<string>('');
+  const [taskNameError, setTaskNameError] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectModel[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -363,8 +365,13 @@ export default function TimerPage() {
   const onStart = async () => {
     // For new tasks, ensure we use the selected project and task name
     if (newTask) {
-      if (!selectedProjectId || !taskName?.trim()) {
-        console.error("Could not start: missing project or task name");
+      const nameErr = validateTaskName(taskName);
+      if (nameErr) {
+        setTaskNameError(nameErr);
+        return;
+      }
+      if (!selectedProjectId) {
+        console.error("Could not start: missing project");
         return;
       }
       
@@ -422,7 +429,7 @@ export default function TimerPage() {
     const task_id = Number(v); // TODO there needs to be a cleaner way to do this.
 
     const isNewTask = !!!v;
-    
+
     if (isNewTask) {
       // Switching to new task mode: reset currentTask and keep selectedProjectId
       // (user can change it via project selector)
@@ -432,6 +439,8 @@ export default function TimerPage() {
       } as TaskModel);
       toggleNewTask(true);
     } else {
+      // Switching to existing task: clear any task name validation error
+      setTaskNameError(null);
       // Selecting an existing task: load the task and update selectedProjectId to match
     const someTask = getTaskById(task_id);
     setCurrentTask(someTask);
@@ -455,8 +464,13 @@ export default function TimerPage() {
   }
 
   const allowStart = useMemo((): boolean => {
+    // Block start when there is a task name validation error
+    if (taskNameError) {
+      return false;
+    }
+
     // is this a new task?
-    if (newTask && currentTask.current?.project_id && currentTask.current?.project_id > -1) {
+    if (newTask && taskName.trim() && currentTask.current?.project_id && currentTask.current?.project_id > -1) {
       return true;
     }
 
@@ -466,7 +480,7 @@ export default function TimerPage() {
     }
 
     return false;
-  }, [newTask, currentTask.current?.project_id, currentTask.current?.id, tasks.length]);
+  }, [taskNameError, taskName, newTask, currentTask.current?.project_id, currentTask.current?.id, tasks.length]);
 
   // useEffect(() => {
   //   console.log("current task:", JSON.stringify(currentTask));
@@ -510,16 +524,38 @@ export default function TimerPage() {
                 ))}
               </select>
               { newTask &&
-                <> 
+                <>
                   <div style={{ padding: 2}}>- OR -</div>
-                  <input
-                    type="text"
-                    placeholder={"enter task name"}
-                    value={taskName ?? ''}
-                    onChange={(e) => setTaskName(e.target.value)}
-                    style={{ flex: 2, minWidth: 100 }}
-                    disabled={!newTask}
-                  />
+                  <div style={{ flex: 2, minWidth: 100, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <input
+                      type="text"
+                      placeholder={'enter task name'}
+                      value={taskName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTaskName(val);
+                        setTaskNameError(val.trim() ? validateTaskName(val) : null);
+                      }}
+                      style={{ width: '100%', boxSizing: 'border-box' }}
+                      disabled={!newTask}
+                      aria-describedby={taskNameError ? 'task-name-error' : 'task-name-counter'}
+                      aria-invalid={!!taskNameError}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em' }}>
+                      {taskNameError
+                        ? <span id="task-name-error" role="alert" style={{ color: 'var(--color-danger, #c0392b)' }}>{taskNameError}</span>
+                        : <span />
+                      }
+                      <span
+                        id="task-name-counter"
+                        style={{ marginLeft: 'auto', color: taskName.length > TASK_NAME_MAX_LEN ? 'var(--color-danger, #c0392b)' : 'inherit' }}
+                        aria-live="polite"
+                        aria-label={`${taskName.length} of ${TASK_NAME_MAX_LEN} characters used`}
+                      >
+                        {taskName.length}/{TASK_NAME_MAX_LEN}
+                      </span>
+                    </div>
+                  </div>
                 </>
               }
             </div>
