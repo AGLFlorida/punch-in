@@ -82,23 +82,6 @@ export class SessionService implements ServiceInterface<SessionModel> {
   }
 
   /**
-   * Close all open sessions whose start_time is strictly before endTime,
-   * stamping each with the same endTime value.
-   * Because every matching session receives the same end timestamp, callers
-   * that need per-session end times should use `stopSessionAt` instead.
-   *
-   * @param endTime - epoch milliseconds to record as end_time
-   * @returns true if at least one session was closed
-   */
-  stopAt(endTime: number): boolean {
-    const res = this.db?.prepare(
-      `UPDATE session SET end_time = ? WHERE end_time IS NULL AND is_active = 1 AND start_time < ?`
-    ).run(endTime, endTime);
-
-    return (res?.changes ?? 0) > 0;
-  }
-
-  /**
    * Close a specific open session at an exact end timestamp.
    * Used by the midnight guard to stamp each cross-midnight session at the
    * correct end-of-day for its own start date.
