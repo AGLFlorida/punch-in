@@ -87,7 +87,7 @@ function computeRestoredSelection(
     const restoredTask = tasks.find((task) => task.id === saved.selectedTaskId) as TaskModel;
     return {
       selectedTaskId: restoredTask.id!,
-      selectedProjectId: restoredTask.project_id,
+      selectedProjectId: restoredTask.project_id ?? '',
       taskName: '',
       newTask: false,
       currentTask: restoredTask,
