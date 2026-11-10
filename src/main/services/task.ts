@@ -46,6 +46,18 @@ export class TaskService implements ServiceInterface<TaskModel> {
     if (!t.project_id) {
       throw new Error("Project ID is required for new tasks.")
     }
+
+    // Return the existing task if one with the same name and project already
+    // exists. This prevents duplicate task rows from repeated start calls.
+    const existing = this.db?.prepare(
+      `SELECT id FROM task WHERE name = ? AND project_id = ? AND is_active = 1`
+    ).get(t.name, t.project_id) as { id: number } | undefined;
+
+    if (existing?.id) {
+      this.lastTask = existing.id;
+      return true;
+    }
+
     const insert = this.db?.prepare(`INSERT OR IGNORE INTO task(name, project_id) VALUES (?,?)`).run(t.name, t.project_id);
     this.lastTask = (insert?.lastInsertRowid as number) ?? -1;
     return !!(insert?.changes && insert?.changes > 0);

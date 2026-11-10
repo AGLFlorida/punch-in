@@ -233,6 +233,93 @@ describe('SessionService', () => {
     });
   });
 
+  describe('stopSessionAt', () => {
+    test('closes the specified session with the given end timestamp', () => {
+      const now = Date.now();
+      const startTime = now - 5000;
+      const sessionId = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, startTime).lastInsertRowid as number;
+
+      const endTime = startTime + 2000;
+      const result = service.stopSessionAt(sessionId, endTime);
+      expect(result).toBe(true);
+
+      const row = db.prepare('SELECT end_time FROM session WHERE id = ?').get(sessionId) as { end_time: number };
+      expect(row.end_time).toBe(endTime);
+    });
+
+    test('does not close an already-closed session', () => {
+      const now = Date.now();
+      const sessionId = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)').run(testTaskId, now - 5000, now - 1000).lastInsertRowid as number;
+
+      const result = service.stopSessionAt(sessionId, now);
+      expect(result).toBe(false);
+    });
+
+    test('does not close a soft-deleted open session (is_active = 0)', () => {
+      const now = Date.now();
+      const id = db.prepare('INSERT INTO session (task_id, start_time, is_active) VALUES (?, ?, 0)').run(testTaskId, now - 5000).lastInsertRowid as number;
+      const result = service.stopSessionAt(id, now);
+      expect(result).toBe(false);
+      const row = db.prepare('SELECT end_time FROM session WHERE id = ?').get(id) as { end_time: number | null };
+      expect(row.end_time).toBeNull();
+    });
+
+    test('returns false for a non-existent session id', () => {
+      const result = service.stopSessionAt(99999, Date.now());
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('getOpenRowsBeforeTime', () => {
+    test('returns empty array when no sessions exist', () => {
+      expect(service.getOpenRowsBeforeTime(Date.now())).toEqual([]);
+    });
+
+    test('returns open sessions started before the cutoff', () => {
+      const now = Date.now();
+      const before = now - 10000;
+      const sessionId = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, before).lastInsertRowid as number;
+
+      const result = service.getOpenRowsBeforeTime(now);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(sessionId);
+    });
+
+    test('excludes open sessions started at or after the cutoff', () => {
+      const now = Date.now();
+      db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, now);
+
+      const result = service.getOpenRowsBeforeTime(now);
+      expect(result).toHaveLength(0);
+    });
+
+    test('excludes already-closed sessions', () => {
+      const now = Date.now();
+      db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)').run(testTaskId, now - 5000, now - 1000);
+
+      const result = service.getOpenRowsBeforeTime(now);
+      expect(result).toHaveLength(0);
+    });
+
+    test('excludes soft-deleted open sessions (is_active = 0)', () => {
+      const now = Date.now();
+      db.prepare('INSERT INTO session (task_id, start_time, is_active) VALUES (?, ?, 0)').run(testTaskId, now - 5000);
+      const result = service.getOpenRowsBeforeTime(now);
+      expect(result).toHaveLength(0);
+    });
+
+    test('returns rows ordered by start_time ASC', () => {
+      const now = Date.now();
+      const id1 = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, now - 3000).lastInsertRowid as number;
+      const id2 = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, now - 1000).lastInsertRowid as number;
+
+      const result = service.getOpenRowsBeforeTime(now);
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(id1); // older first
+      expect(result[1].id).toBe(id2);
+    });
+  });
+
   describe('remove', () => {
     test('soft deletes session by setting is_active = 0', () => {
       const now = Date.now();

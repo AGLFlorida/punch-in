@@ -97,7 +97,7 @@ describe('TaskService', () => {
       expect(lastId).toBeGreaterThan(0);
     });
 
-    test('handles duplicate task names (INSERT OR IGNORE)', () => {
+    test('returns true without inserting when same name and project submitted twice', () => {
       const tasks1: TaskModel[] = [
         { name: 'Duplicate Task', project_id: testProjectId } as TaskModel,
       ];
@@ -107,14 +107,45 @@ describe('TaskService', () => {
 
       service.set(tasks1);
       const result = service.set(tasks2);
-      // INSERT OR IGNORE: Since there's no unique constraint on task name,
-      // duplicate names are allowed and will insert a new row
-      // So the second insert succeeds and returns true
+      // The dedup guard returns the existing row before reaching INSERT,
+      // so the second call returns true but inserts nothing.
       expect(result).toBe(true);
 
       const all = service.get();
-      // Both tasks are inserted since name isn't unique
-      expect(all.length).toBeGreaterThanOrEqual(1);
+      // Only one row exists — the second set() was a no-op at the DB level.
+      expect(all).toHaveLength(1);
+    });
+
+    test('returns existing task id when same name and project already exists (dedup)', () => {
+      const task: TaskModel = { name: 'My Task', project_id: testProjectId } as TaskModel;
+
+      service.set([task]);
+      const firstId = service.getLastTaskId();
+      expect(firstId).toBeGreaterThan(0);
+
+      // Second set with same name+project should reuse existing task
+      service.set([{ name: 'My Task', project_id: testProjectId } as TaskModel]);
+      const secondId = service.getLastTaskId();
+
+      // Must return the same task id — no duplicate row
+      expect(secondId).toBe(firstId);
+      expect(service.get()).toHaveLength(1);
+    });
+
+    test('creates a distinct task when project differs', () => {
+      const companyInsert2 = db.prepare('INSERT INTO company (name) VALUES (?)').run('Other Company');
+      const companyId2 = companyInsert2.lastInsertRowid as number;
+      const projectInsert2 = db.prepare('INSERT INTO project (name, company_id) VALUES (?, ?)').run('Other Project', companyId2);
+      const otherProjectId = projectInsert2.lastInsertRowid as number;
+
+      service.set([{ name: 'Shared Name', project_id: testProjectId } as TaskModel]);
+      const id1 = service.getLastTaskId();
+
+      service.set([{ name: 'Shared Name', project_id: otherProjectId } as TaskModel]);
+      const id2 = service.getLastTaskId();
+
+      expect(id1).not.toBe(id2);
+      expect(service.get()).toHaveLength(2);
     });
   });
 
