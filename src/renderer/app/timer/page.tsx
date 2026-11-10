@@ -94,7 +94,7 @@ function computeRestoredSelection(
     };
   }
 
-  if (saved.newTask || saved.taskName !== '') {
+  if (saved.newTask) {
     return {
       selectedTaskId: '',
       selectedProjectId: projectExists ? saved.selectedProjectId : '',
@@ -191,6 +191,10 @@ export default function TimerPage() {
               if (state.currentTask.project_id) {
                 setSelectedProjectId(state.currentTask.project_id);
               }
+            } else {
+              // Task details unavailable – restore last-used selection from localStorage
+              // so the persistence effect does not overwrite valid saved data with defaults
+              applyRestoredSelection(loadTimerSelection(), t, p);
             }
           } else {
             // No active timer – restore last-used project/task from localStorage
@@ -225,6 +229,9 @@ export default function TimerPage() {
 
     return () => {
       clearInterval(wallClockInterval);
+      // Reset on unmount so a remount (e.g. React StrictMode) re-runs restoration
+      // before the persistence effect is allowed to fire.
+      initialLoadDone.current = false;
     };
   }, []);
 
@@ -534,7 +541,8 @@ export default function TimerPage() {
                       onChange={(e) => {
                         const val = e.target.value;
                         setTaskName(val);
-                        setTaskNameError(val.trim() ? validateTaskName(val) : null);
+                        // Show required error for whitespace-only; suppress only for truly empty field
+                        setTaskNameError(val === '' ? null : validateTaskName(val));
                       }}
                       style={{ width: '100%', boxSizing: 'border-box' }}
                       disabled={!newTask}
