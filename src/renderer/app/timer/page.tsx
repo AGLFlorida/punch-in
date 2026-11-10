@@ -254,10 +254,11 @@ export default function TimerPage() {
       }
       
       // Update currentTask with selected project and task name.
-      // Preserve the existing task ID if already created this session to
-      // prevent duplicate task creation on subsequent Start calls.
+      // Do not forward the previous task id: the service-layer dedup guard in
+      // TaskService.set already reuses an existing task when name+project_id
+      // match, so forwarding the id here would cause sessions to be logged
+      // against the wrong task when the user changes the name or project.
       setCurrentTask({
-        ...(currentTask.current?.id ? { id: currentTask.current.id } : {}),
         name: taskName.trim(),
         project_id: selectedProjectId
       } as TaskModel);

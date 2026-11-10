@@ -96,26 +96,25 @@ describe('TimerPage – task dropdown deduplication', () => {
   });
 });
 
-describe('TimerPage – new task ID preservation', () => {
+describe('TimerPage – new task start behavior', () => {
   afterEach(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).tp;
     jest.clearAllMocks();
   });
 
-  test('start called twice in new-task mode does not invoke tp.start with an id-less task on second call', async () => {
+  test('second Start in new-task mode sends task without an explicit id so the service dedup guard can run', async () => {
+    // The UI must NOT forward the id from the first Start onto the second call.
+    // If it did, the session handler would skip taskSvc.set and log time against
+    // the original task even when the user changed the name or project.
+    // The service-layer dedup guard (TaskService.set) handles same-name reuse.
     const user = userEvent.setup();
-    let capturedTask: TaskModel | null = null;
 
     const mockTp = {
       getTasks: jest.fn(() => Promise.resolve([])),
       getProjectList: jest.fn(() => Promise.resolve([{ id: 1, name: 'Proj', company_id: 1 }])),
       getState: jest.fn(() => Promise.resolve({ running: false })),
-      // First call: returns task id 42
-      start: jest.fn((task: TaskModel) => {
-        capturedTask = task;
-        return Promise.resolve(42);
-      }),
+      start: jest.fn(() => Promise.resolve(42)),
       stop: jest.fn(() => Promise.resolve(true)),
     };
 
@@ -126,7 +125,7 @@ describe('TimerPage – new task ID preservation', () => {
 
     await waitFor(() => expect(mockTp.getTasks).toHaveBeenCalled());
 
-    // Type task name
+    // Type task name and select a project
     const taskNameInput = screen.getByPlaceholderText('enter task name');
     await user.type(taskNameInput, 'Work Item');
 
@@ -136,31 +135,27 @@ describe('TimerPage – new task ID preservation', () => {
     const projectCombo = combos[combos.length - 1]; // project select is last
     await user.selectOptions(projectCombo, '1');
 
-    // Click Start
+    // First Start
     const startBtn = screen.getByRole('button', { name: /start/i });
     await user.click(startBtn);
-
     await waitFor(() => expect(mockTp.start).toHaveBeenCalledTimes(1));
 
-    // After first start, capturedTask should NOT have an id (new task)
-    // but after the call, the task id should be set to 42
-    expect(capturedTask).not.toBeNull();
+    const firstCallTask = mockTp.start.mock.calls[0][0] as TaskModel;
+    // First call should not have an id (new task, no existing id)
+    expect(firstCallTask.id).toBeUndefined();
 
     // Click Stop
     const stopBtn = screen.getByRole('button', { name: /stop/i });
     await user.click(stopBtn);
-
     await waitFor(() => expect(mockTp.stop).toHaveBeenCalledTimes(1));
 
-    // Click Start again — second start should preserve the task id (42)
-    // so tp.start is called with { id: 42, ... } instead of { id: undefined, ... }
+    // Second Start — must NOT carry the id=42 set after the first start.
+    // The service dedup guard on the backend handles reuse by name+project_id.
     await user.click(startBtn);
-
     await waitFor(() => expect(mockTp.start).toHaveBeenCalledTimes(2));
 
     const secondCallTask = mockTp.start.mock.calls[1][0] as TaskModel;
-    // The second call should carry the id from the first start (42),
-    // preventing a brand-new task from being created
-    expect(secondCallTask.id).toBe(42);
+    // Second call must not carry a stale id from the first call
+    expect(secondCallTask.id).toBeUndefined();
   });
 });
