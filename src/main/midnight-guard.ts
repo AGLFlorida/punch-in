@@ -96,8 +96,11 @@ function scheduleMidnightClose(): void {
 
   const ms = getMsUntilMidnight();
   midnightTimer = setTimeout(() => {
-    closeSessionsAcrossMidnight();
-    scheduleMidnightClose(); // reschedule for the next midnight
+    try {
+      closeSessionsAcrossMidnight();
+    } finally {
+      scheduleMidnightClose(); // always reschedule, even if close throws
+    }
   }, ms);
 
   // Allow Node/Electron to exit cleanly if the app quits while the timer is live
