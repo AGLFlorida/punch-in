@@ -92,6 +92,8 @@ function scheduleMidnightClose(): void {
   midnightTimer = setTimeout(() => {
     try {
       closeSessionsAcrossMidnight();
+    } catch (err) {
+      console.error('[midnight-guard] failed to auto-close sessions at midnight:', err);
     } finally {
       scheduleMidnightClose(); // always reschedule, even if close throws
     }
@@ -146,6 +148,8 @@ export function setupMidnightGuard(options: MidnightGuardOptions = {}): void {
     options.powerMonitor.on('resume', () => {
       try {
         closeSessionsAcrossMidnight();
+      } catch (err) {
+        console.error('[midnight-guard] failed to auto-close sessions on resume:', err);
       } finally {
         scheduleMidnightClose(); // always reschedule, even if close throws
       }
