@@ -98,7 +98,11 @@ function scheduleMidnightClose(): void {
     } catch (err) {
       console.error('[midnight-guard] failed to auto-close sessions at midnight:', err);
     } finally {
-      if (!_tornDown) scheduleMidnightClose(); // reschedule only if still active
+      // Always reschedule for the NEXT midnight (~24 h away), even on error.
+      // getMsUntilMidnight() computes tomorrow's 00:00:00 relative to the
+      // current clock, so a DB error at midnight does not produce a tight loop —
+      // the next attempt is ~24 h later, not 1 ms.
+      if (!_tornDown) scheduleMidnightClose();
     }
   }, ms);
 
