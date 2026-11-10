@@ -18,6 +18,45 @@ const ONE_MINUTE_MS = 60 * 1000;
 // Using -1 as a sentinel value that passes validation (!task?.id check)
 const FALLBACK_TASK_ID = -1;
 
+// localStorage keys for persisting timer selection across navigation
+const LS_TASK_ID = 'timer-selectedTaskId';
+const LS_PROJECT_ID = 'timer-selectedProjectId';
+const LS_TASK_NAME = 'timer-taskName';
+const LS_NEW_TASK = 'timer-newTask';
+
+type SavedTimerSelection = {
+  selectedTaskId: number | '';
+  selectedProjectId: number | '';
+  taskName: string;
+  newTask: boolean;
+};
+
+function saveTimerSelection(
+  taskId: number | '',
+  projectId: number | '',
+  taskName: string,
+  newTask: boolean,
+): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LS_TASK_ID, String(taskId));
+  localStorage.setItem(LS_PROJECT_ID, String(projectId));
+  localStorage.setItem(LS_TASK_NAME, taskName);
+  localStorage.setItem(LS_NEW_TASK, String(newTask));
+}
+
+function loadTimerSelection(): SavedTimerSelection | null {
+  if (typeof window === 'undefined') return null;
+  const taskIdRaw = localStorage.getItem(LS_TASK_ID);
+  const projectIdRaw = localStorage.getItem(LS_PROJECT_ID);
+  if (taskIdRaw === null && projectIdRaw === null) return null;
+  return {
+    selectedTaskId: taskIdRaw && taskIdRaw !== '' ? Number(taskIdRaw) : '',
+    selectedProjectId: projectIdRaw && projectIdRaw !== '' ? Number(projectIdRaw) : '',
+    taskName: localStorage.getItem(LS_TASK_NAME) ?? '',
+    newTask: localStorage.getItem(LS_NEW_TASK) === 'true',
+  };
+}
+
 export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | ''>('');
@@ -38,6 +77,9 @@ export default function TimerPage() {
   const setCurrentTask = (t: TaskModel) => {
     currentTask.current = t;
   }
+  // Tracks whether the initial async load has completed so the persistence
+  // effect does not overwrite localStorage before the restore has run.
+  const initialLoadDone = useRef(false);
 
   // const getProjectName = (id: number): string => {
   //   const proj: ProjectModel[] = projects.filter((p: ProjectModel) => p.id === id);
@@ -64,30 +106,78 @@ export default function TimerPage() {
           if (p.id && projectNames.current) projectNames.current[p.id] = p.name;
         })
 
-        // Restore timer state if a session is running
+        // Restore timer state if a session is running; fall back to localStorage
         if (typeof window !== 'undefined' && window.tp?.getState) {
           const state = await window.tp.getState();
-          if (state.running && state.startTs && state.currentTask?.id) {
+          // Restore running timer regardless of whether task details are available
+          if (state.running && state.startTs) {
             setIsRunning(true);
             setStartTs(state.startTs);
-            setCurrentTask(state.currentTask);
-            setSelectedTaskId(state.currentTask.id);
-            if (state.currentTask.project_id) {
-              setSelectedProjectId(state.currentTask.project_id);
+            if (state.currentTask?.id) {
+              setCurrentTask(state.currentTask);
+              setSelectedTaskId(state.currentTask.id);
+              toggleNewTask(false);
+              if (state.currentTask.project_id) {
+                setSelectedProjectId(state.currentTask.project_id);
+              }
             }
           } else {
-            // Do not preselect any option after loading; leave selects empty
+            // No active timer – restore last-used project/task from localStorage
+            const saved = loadTimerSelection();
+            if (saved) {
+              const taskExists = saved.selectedTaskId !== '' && t.some((task: TaskModel) => task.id === saved.selectedTaskId);
+              const projectExists = saved.selectedProjectId !== '' && p.some((proj: ProjectModel) => proj.id === saved.selectedProjectId);
+              if (taskExists && !saved.newTask) {
+                const restoredTask = t.find((task: TaskModel) => task.id === saved.selectedTaskId) as TaskModel;
+                setCurrentTask(restoredTask);
+                setSelectedTaskId(restoredTask.id!);
+                setSelectedProjectId(restoredTask.project_id);
+                toggleNewTask(false);
+              } else if (saved.newTask || saved.taskName !== '') {
+                // Restore new-task mode
+                setTaskName(saved.taskName);
+                toggleNewTask(true);
+                if (projectExists) {
+                  setSelectedProjectId(saved.selectedProjectId);
+                  setCurrentTask({ name: saved.taskName, project_id: saved.selectedProjectId as number } as TaskModel);
+                } else {
+                  setSelectedProjectId('');
+                }
+              } else {
+                setSelectedTaskId('');
+                setSelectedProjectId('');
+              }
+            } else {
+              setSelectedTaskId('');
+              setSelectedProjectId('');
+            }
+          }
+        } else {
+          // No IPC available – restore from localStorage when possible
+          const saved = loadTimerSelection();
+          if (saved) {
+            const taskExists = saved.selectedTaskId !== '' && t.some((task: TaskModel) => task.id === saved.selectedTaskId);
+            if (taskExists && !saved.newTask) {
+              const restoredTask = t.find((task: TaskModel) => task.id === saved.selectedTaskId) as TaskModel;
+              setCurrentTask(restoredTask);
+              setSelectedTaskId(restoredTask.id!);
+              setSelectedProjectId(restoredTask.project_id);
+              toggleNewTask(false);
+            } else {
+              setTaskName(saved.taskName);
+              toggleNewTask(saved.newTask || saved.taskName !== '');
+              setSelectedProjectId(saved.selectedProjectId);
+            }
+          } else {
             setSelectedTaskId('');
             setSelectedProjectId('');
           }
-        } else {
-          // Do not preselect any option after loading; leave selects empty
-          setSelectedTaskId('');
-          setSelectedProjectId('');
         }
-       
+        initialLoadDone.current = true;
+
       } catch (e) {
         console.info("Error loading tasks and projects:", e)
+        initialLoadDone.current = true;
       }
     };
     load();
@@ -111,10 +201,18 @@ export default function TimerPage() {
     };
   }, []);
 
+  // Persist selection to localStorage so it survives navigation.
+  // Guard with initialLoadDone so the first empty-state render does not
+  // overwrite a previously saved selection before restoration has run.
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    saveTimerSelection(selectedTaskId, selectedProjectId, taskName, newTask);
+  }, [selectedTaskId, selectedProjectId, taskName, newTask]);
+
   /**
    * Performs the actual stop operation for the timer.
    * Updates UI state only after successful stop, or when no sessions exist.
-   * 
+   *
    * @param showError - Whether to show error notifications to the user (default: true)
    * @returns Promise<boolean> - true if stop succeeded or no sessions existed, false on error
    */
