@@ -150,6 +150,10 @@ export default function TimerPage() {
     setTaskName(restored.taskName);
     toggleNewTask(restored.newTask);
     if (restored.currentTask) setCurrentTask(restored.currentTask);
+    // Validate restored task name so Start button state is correct immediately
+    if (restored.newTask && restored.taskName) {
+      setTaskNameError(validateTaskName(restored.taskName));
+    }
   };
 
   // const getProjectName = (id: number): string => {
@@ -446,8 +450,10 @@ export default function TimerPage() {
       } as TaskModel);
       toggleNewTask(true);
     } else {
-      // Switching to existing task: clear any task name validation error
+      // Switching to existing task: clear task name and any validation error so stale
+      // values are not persisted to localStorage with newTask=false
       setTaskNameError(null);
+      setTaskName('');
       // Selecting an existing task: load the task and update selectedProjectId to match
     const someTask = getTaskById(task_id);
     setCurrentTask(someTask);
