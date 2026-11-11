@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { msToHMS } from '@/lib/time';
+import { aggregateByWeek } from '@/lib/reports';
 import type { ReportModel } from '../../../main/services/report';
+import type { WeeklyReportRow } from '@/lib/reports';
 
 type SortColumn = 'company_name' | 'project_name' | 'task_name' | 'day' | 'total_seconds';
 type SortDirection = 'asc' | 'desc';
@@ -48,47 +50,14 @@ export default function ReportsPage() {
       filtered = filtered.filter(r => r?.company_name === selectedCompany);
     }
 
-    // Filter by date
-    if (selectedDate) {
+    // Filter by date — skip when WTD mode is active so no days are silently dropped
+    if (selectedDate && !wtdMode) {
       filtered = filtered.filter(r => r?.day === selectedDate);
     }
 
-    // If WTD mode, aggregate by project and week
+    // If WTD mode, aggregate by project and week using the shared utility
     if (wtdMode) {
-      const weeklyData = new Map<string, ReportModel & { week_range?: string; week_start_date?: string }>();
-
-      filtered.forEach(r => {
-        if (!r?.day || !r?.project_name) return;
-        
-        // Calculate Monday of the week for this date
-        const date = new Date(r.day);
-        const dayOfWeek = date.getDay();
-        const monday = new Date(date);
-        monday.setDate(date.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-        
-        // Calculate Sunday of the week
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-        
-        const weekKey = `${r.company_name}-${r.project_name}-${monday.toISOString().split('T')[0]}`;
-        const weekRange = `${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${sunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-        const weekStartDate = monday.toISOString().split('T')[0]; // Store Monday date for sorting
-        
-        if (weeklyData.has(weekKey)) {
-          weeklyData.get(weekKey)!.total_seconds += r.total_seconds || 0;
-        } else {
-          weeklyData.set(weekKey, {
-            ...r,
-            task_name: '', // Not shown in WTD mode
-            day: weekRange, // Replace day with week range for display
-            week_range: weekRange,
-            week_start_date: weekStartDate, // Store Monday date for sorting
-            total_seconds: r.total_seconds || 0
-          });
-        }
-      });
-
-      filtered = Array.from(weeklyData.values());
+      filtered = aggregateByWeek(filtered);
     }
 
     // Sort
@@ -102,8 +71,8 @@ export default function ReportsPage() {
 
       // Special handling for day column in WTD mode - use week_start_date for chronological sorting
       if (sortColumn === 'day' && wtdMode) {
-        const aWeekStart = (a as ReportModel & { week_start_date?: string }).week_start_date;
-        const bWeekStart = (b as ReportModel & { week_start_date?: string }).week_start_date;
+        const aWeekStart = (a as WeeklyReportRow).week_start_date;
+        const bWeekStart = (b as WeeklyReportRow).week_start_date;
         if (aWeekStart && bWeekStart) {
           aVal = aWeekStart;
           bVal = bWeekStart;
