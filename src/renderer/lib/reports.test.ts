@@ -144,7 +144,46 @@ describe('aggregateByWeek', () => {
     expect(result).toHaveLength(0);
   });
 
+  it('skips a row with an empty company_name', () => {
+    const rows = [makeRow({ company_name: '', total_seconds: 1800 })] as ReportModel[];
+    const result = aggregateByWeek(rows);
+    expect(result).toHaveLength(0);
+  });
+
   it('returns empty array for empty input', () => {
     expect(aggregateByWeek([])).toHaveLength(0);
+  });
+
+  it('does not merge rows whose company names share a hyphen-separated prefix', () => {
+    // 'Acme-Corp'+'Alpha' and 'Acme'+'Corp-Alpha' must stay separate
+    const rows: ReportModel[] = [
+      makeRow({ company_name: 'Acme-Corp', project_name: 'Alpha',      total_seconds: 3600 }),
+      makeRow({ company_name: 'Acme',      project_name: 'Corp-Alpha', total_seconds: 7200 }),
+    ];
+    const result = aggregateByWeek(rows);
+    expect(result).toHaveLength(2);
+    const acmeCorp = result.find(r => r.company_name === 'Acme-Corp');
+    const acme     = result.find(r => r.company_name === 'Acme');
+    expect(acmeCorp?.total_seconds).toBe(3600);
+    expect(acme?.total_seconds).toBe(7200);
+  });
+
+  it('marks the aggregate as deleted when any session in the week is deleted', () => {
+    const rows: ReportModel[] = [
+      makeRow({ day: '2024-01-15', total_seconds: 3600, is_deleted: false }),
+      makeRow({ day: '2024-01-17', total_seconds: 7200, is_deleted: true  }),
+    ];
+    const result = aggregateByWeek(rows);
+    expect(result).toHaveLength(1);
+    expect(result[0].is_deleted).toBe(true);
+  });
+
+  it('leaves is_deleted false when no session in the week is deleted', () => {
+    const rows: ReportModel[] = [
+      makeRow({ day: '2024-01-15', total_seconds: 3600, is_deleted: false }),
+      makeRow({ day: '2024-01-17', total_seconds: 7200, is_deleted: false }),
+    ];
+    const result = aggregateByWeek(rows);
+    expect(result[0].is_deleted).toBe(false);
   });
 });

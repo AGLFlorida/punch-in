@@ -43,20 +43,29 @@ export function aggregateByWeek(rows: ReportModel[]): WeeklyReportRow[] {
   const weeklyData = new Map<string, WeeklyReportRow>();
 
   for (const r of rows) {
-    if (!r?.day || !r?.project_name) continue;
+    // Guard all three grouping fields so the key is unambiguous
+    if (!r?.day || !r?.project_name || !r?.company_name) continue;
 
     const date = parseDateLocal(r.day);
     const mondayStr = getMondayOfWeek(date);
 
-    // Derive Sunday from Monday
-    const sunday = new Date(parseDateLocal(mondayStr));
-    sunday.setDate(sunday.getDate() + 6);
+    // Reuse the parsed Monday date — avoids a redundant parseDateLocal call
+    const mondayDate = parseDateLocal(mondayStr);
 
-    const weekRange = `${parseDateLocal(mondayStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${sunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    const weekKey = `${r.company_name}-${r.project_name}-${mondayStr}`;
+    // Derive Sunday from Monday
+    const sunday = new Date(mondayDate);
+    sunday.setDate(mondayDate.getDate() + 6);
+
+    const weekRange = `${mondayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${sunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
+    // Use a null-byte separator so company/project names containing '-' never collide
+    const weekKey = `${r.company_name}\0${r.project_name}\0${mondayStr}`;
 
     if (weeklyData.has(weekKey)) {
-      weeklyData.get(weekKey)!.total_seconds += r.total_seconds || 0;
+      const existing = weeklyData.get(weekKey)!;
+      existing.total_seconds += r.total_seconds || 0;
+      // If any session within the week is deleted, mark the aggregate as deleted
+      if (r.is_deleted) existing.is_deleted = true;
     } else {
       weeklyData.set(weekKey, {
         ...r,
