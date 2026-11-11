@@ -168,9 +168,71 @@ export class SessionService implements ServiceInterface<SessionModel> {
   }
 
   /**
+   * Return the most recently closed session row (end_time IS NOT NULL, is_active = 1).
+   * Used by the timer UI to surface the last stopped session for end-time correction.
+   *
+   * @returns the latest closed SessionRow, or null if none exists
+   */
+  getLastClosedRow(): SessionRow | null {
+    const row = this.db?.prepare(
+      `SELECT id, task_id, start_time, end_time
+       FROM session
+       WHERE end_time IS NOT NULL AND is_active = 1
+       ORDER BY id DESC LIMIT 1`
+    ).get() as SessionRow | undefined;
+
+    return row ?? null;
+  }
+
+  /**
+   * Update the end_time of a completed session.
+   * Validates that the new end time is after the session's start time and not in
+   * the future. Only updates sessions that have already been closed (end_time IS NOT NULL).
+   *
+   * @param id      - session ID to update
+   * @param endTime - new end timestamp in epoch milliseconds
+   * @returns true if the session was updated, false if not found / validation failed
+   */
+  updateEndTime(id: number, endTime: number): boolean {
+    if (!id || !endTime) {
+      return false;
+    }
+
+    // Fetch the session to validate constraints
+    const row = this.db?.prepare(
+      `SELECT start_time, end_time FROM session WHERE id = ? AND is_active = 1`
+    ).get(id) as { start_time: number; end_time: number | null } | undefined;
+
+    if (!row) {
+      return false;
+    }
+
+    // Session must already be stopped (not running)
+    if (row.end_time === null) {
+      return false;
+    }
+
+    // end_time must be after start_time
+    if (endTime <= row.start_time) {
+      return false;
+    }
+
+    // end_time must not be in the future
+    if (endTime > Date.now()) {
+      return false;
+    }
+
+    const res = this.db?.prepare(
+      `UPDATE session SET end_time = ? WHERE id = ? AND is_active = 1 AND end_time IS NOT NULL`
+    ).run(endTime, id);
+
+    return (res?.changes ?? 0) > 0;
+  }
+
+  /**
    * Soft delete a session by setting is_active = 0.
    * This marks the session as deleted but preserves the data in the database.
-   * 
+   *
    * @param id - The session ID to delete
    * @returns true if the session was successfully deleted, false otherwise
    */

@@ -97,11 +97,34 @@ export const sessionHandler = (services: ServiceManager) => {
       }
 
       const result = svc.remove(id);
-      
+
       // Invalidate tray cache so it updates immediately
       invalidateTrayCache();
 
       return result;
+    },
+
+    getLastClosedSession: () => {
+      if (!svc) {
+        throw new Error("Session service not initialized.");
+      }
+      return svc.getLastClosedRow();
+    },
+
+    updateEndTime: (_e: IpcMainInvokeEvent, id: number, endTime: number): boolean => {
+      if (!id) {
+        throw new Error("Missing session id.");
+      }
+
+      if (!endTime || endTime <= 0) {
+        throw new Error("Missing or invalid end time.");
+      }
+
+      if (!svc) {
+        throw new Error("Session service not initialized.");
+      }
+
+      return svc.updateEndTime(id, endTime);
     }
   }
 }

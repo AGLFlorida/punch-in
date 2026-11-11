@@ -157,5 +157,71 @@ describe('sessionHandler', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('getLastClosedSession', () => {
+    test('returns null when no closed session exists', () => {
+      mockSessionService.getLastClosedRow = () => null;
+      handler = sessionHandler(mockServices);
+      const result = handler.getLastClosedSession();
+      expect(result).toBeNull();
+    });
+
+    test('returns the most recently closed session row', () => {
+      const now = Date.now();
+      const fakeRow = { id: 7, task_id: 1, start_time: now - 5000, end_time: now - 100 };
+      mockSessionService.getLastClosedRow = () => fakeRow;
+      handler = sessionHandler(mockServices);
+      const result = handler.getLastClosedSession();
+      expect(result).toEqual(fakeRow);
+    });
+
+    test('throws when session service is not initialized', () => {
+      const nullServices = createMockServiceManager({
+        session: () => null as unknown as SessionService,
+        task: () => mockTaskService as TaskService,
+      });
+      const nullHandler = sessionHandler(nullServices);
+      expect(() => nullHandler.getLastClosedSession()).toThrow('Session service not initialized.');
+    });
+  });
+
+  describe('updateEndTime', () => {
+    test('throws when session id is missing', () => {
+      expect(() =>
+        handler.updateEndTime({} as IpcMainInvokeEvent, 0, Date.now() - 100)
+      ).toThrow('Missing session id.');
+    });
+
+    test('throws when endTime is missing or zero', () => {
+      expect(() =>
+        handler.updateEndTime({} as IpcMainInvokeEvent, 1, 0)
+      ).toThrow('Missing or invalid end time.');
+    });
+
+    test('throws when session service is not initialized', () => {
+      const nullServices = createMockServiceManager({
+        session: () => null as unknown as SessionService,
+        task: () => mockTaskService as TaskService,
+      });
+      const nullHandler = sessionHandler(nullServices);
+      expect(() =>
+        nullHandler.updateEndTime({} as IpcMainInvokeEvent, 1, Date.now() - 100)
+      ).toThrow('Session service not initialized.');
+    });
+
+    test('returns true when service reports success', () => {
+      mockSessionService.updateEndTime = () => true;
+      handler = sessionHandler(mockServices);
+      const result = handler.updateEndTime({} as IpcMainInvokeEvent, 1, Date.now() - 100);
+      expect(result).toBe(true);
+    });
+
+    test('returns false when service reports failure (validation reject)', () => {
+      mockSessionService.updateEndTime = () => false;
+      handler = sessionHandler(mockServices);
+      const result = handler.updateEndTime({} as IpcMainInvokeEvent, 1, Date.now() - 100);
+      expect(result).toBe(false);
+    });
+  });
 });
 
