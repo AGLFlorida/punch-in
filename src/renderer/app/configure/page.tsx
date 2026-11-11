@@ -4,24 +4,29 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CompanyModel } from '../../../main/services/company';
 import type { ProjectModel } from '../../../main/services/project';
+
+/** UI-only extension: _tempId gives unsaved companies a stable React key. */
+type UICompanyModel = CompanyModel & { _tempId?: number };
 import { NotifyBox } from '@/components/Notify';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';
 import { useNavigationGuard } from '@/components/NavigationGuard';
 
 type SavedSnapshot = {
-  companies: CompanyModel[];
+  companies: UICompanyModel[];
   projects: ProjectModel[];
 };
 
 export default function ConfigurePage() {
   const router = useRouter();
   const { registerGuard, unregisterGuard } = useNavigationGuard();
-  const [companies, setCompanies] = useState<CompanyModel[]>([]);
+  const tempIdCounter = useRef(0);
+  const [companies, setCompanies] = useState<UICompanyModel[]>([]);
   const [projects, setProjects] = useState<ProjectModel[]>([]);
-  const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
+  const [deletedCompanies, setDeletedCompanies] = useState<UICompanyModel[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<ProjectModel[]>([]);
   const [didSave, setDidSave] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const savedSnapshotRef = useRef<SavedSnapshot | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -50,8 +55,8 @@ export default function ConfigurePage() {
   };
 
   // Compare company models
-  const companyEqual = (a: CompanyModel, b: CompanyModel): boolean => {
-    return a.id === b.id && a.name === b.name;
+  const companyEqual = (a: UICompanyModel, b: UICompanyModel): boolean => {
+    return a.id === b.id && a.name === b.name && a._tempId === b._tempId;
   };
 
   // Compare project models
@@ -127,7 +132,8 @@ export default function ConfigurePage() {
   }, []);
 
   const addCompany = () => {
-    setCompanies((prev) => [...prev, { name: ''}]);
+    const tempId = ++tempIdCounter.current;
+    setCompanies((prev) => [...prev, { name: '', _tempId: tempId }]);
   }
 
   const updateCompany = (i: number, v: string) => {
@@ -145,8 +151,16 @@ export default function ConfigurePage() {
   };
 
   const removeCompany = (i: number) => {
-    setDeletedCompanies((prev) => [...prev, companies[i]]);
+    const removed = companies[i];
+    setDeletedCompanies((prev) => [...prev, removed]);
     setCompanies((prev) => prev.filter((_, idx) => idx !== i));
+    // Reassign any projects owned by this company to unassigned (-1)
+    // so they remain visible and manageable in the UI.
+    if (removed.id && removed.id > 0) {
+      setProjects((prev) =>
+        prev.map((p) => p.company_id === removed.id ? { ...p, company_id: -1 } : p)
+      );
+    }
   }
 
   /**
@@ -221,6 +235,12 @@ export default function ConfigurePage() {
   }
 
   const onSave = async () => {
+    // Block save when unassigned projects exist to prevent silent data loss.
+    const unassigned = projects.filter((p) => !p.company_id || p.company_id < 1);
+    if (unassigned.length > 0) {
+      setSaveError(`${unassigned.length} project${unassigned.length > 1 ? 's have' : ' has'} no company assigned. Assign a company or delete before saving.`);
+      return;
+    }
     try {
       if (deletedCompanies.length > 0) {
         for (const i in deletedCompanies) {
@@ -295,6 +315,12 @@ export default function ConfigurePage() {
           close={() => setDidSave(false)}
         />
       )}
+      {saveError && (
+        <NotifyBox
+          opts={{ title: 'Cannot Save', body: saveError }}
+          close={() => setSaveError(null)}
+        />
+      )}
       <ConfirmDialog
         title={`Delete ${confirmDialog.type === 'company' ? 'Company' : 'Project'}`}
         message={`Are you sure you want to delete "${confirmDialog.name}"?`}
@@ -333,10 +359,12 @@ export default function ConfigurePage() {
         {companies.map((c, ci) => {
           const childProjectIndices = c.id && c.id > 0 ? (projectsByCompanyId.get(c.id) ?? []) : [];
           const isNewCompany = !c.id || c.id <= 0;
+          // Use saved id or stable tempId as React key to avoid DOM misassignment on delete.
+          const companyKey = c.id && c.id > 0 ? `co-id-${c.id}` : `co-tmp-${c._tempId ?? ci}`;
 
           return (
             <div
-              key={`co-${ci}`}
+              key={companyKey}
               style={{
                 border: '1px solid #e5e7eb',
                 borderRadius: 10,
@@ -396,7 +424,7 @@ export default function ConfigurePage() {
               {/* Add project within company (only for saved companies) */}
               <div style={{ padding: '8px 12px 8px 32px', background: '#fff' }}>
                 {isNewCompany ? (
-                  <span data-testid="new-company-hint" style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>Save to enable adding projects</span>
+                  <span data-testid={`new-company-hint-${companyKey}`} style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>Save to enable adding projects</span>
                 ) : (
                   <button
                     onClick={() => addProjectForCompany(c.id)}
@@ -469,8 +497,8 @@ export default function ConfigurePage() {
           </div>
         )}
 
-        {/* Fallback: add project manually (for when companies need to be created first) */}
-        {companies.length > 0 && companies.every((c) => c.id && c.id > 0) && (
+        {/* Fallback: add project manually (available whenever at least one saved company exists) */}
+        {companies.some((c) => c.id && c.id > 0) && (
           <div>
             <button onClick={addProject}>+ Add unassigned project</button>
           </div>
