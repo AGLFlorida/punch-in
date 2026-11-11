@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { msToHMS } from '@/lib/time';
+import { msToHMS, roundToNearest15Min } from '@/lib/time';
+import { ROUND_15_KEY } from '../configure/page';
 import type { ReportModel } from '../../../main/services/report';
 
 type SortColumn = 'company_name' | 'project_name' | 'task_name' | 'day' | 'total_seconds';
@@ -16,6 +17,7 @@ export default function ReportsPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [wtdMode, setWtdMode] = useState<boolean>(false);
   const [showDeleted, setShowDeleted] = useState<boolean>(false);
+  const [roundDurations, setRoundDurations] = useState<boolean>(false);
 
   const load = async () => {
     try {
@@ -38,6 +40,12 @@ export default function ReportsPage() {
     //console.log("CALLED LOAD")
     //window.tp.onSessionsUpdated(load);
   }, [showDeleted]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setRoundDurations(localStorage.getItem(ROUND_15_KEY) === 'true');
+    }
+  }, []);
 
   // Filter and sort rows
   const filteredAndSortedRows = useMemo(() => {
@@ -224,7 +232,7 @@ export default function ReportsPage() {
                 <td>{r?.project_name}</td>
                 {!wtdMode && <td>{r?.task_name}</td>}
                 <td>{r?.day}</td>
-                <td>{msToHMS(r?.total_seconds * 1000)}</td>
+                <td>{msToHMS((roundDurations ? roundToNearest15Min(r?.total_seconds ?? 0) : (r?.total_seconds ?? 0)) * 1000)}</td>
               </tr>
             ))}
             {filteredAndSortedRows.length === 0 && (

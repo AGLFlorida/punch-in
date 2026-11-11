@@ -9,6 +9,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';
 import { useNavigationGuard } from '@/components/NavigationGuard';
 
+export const ROUND_15_KEY = 'punchin.roundToNearest15';
+
 type SavedSnapshot = {
   companies: CompanyModel[];
   projects: ProjectModel[];
@@ -19,6 +21,7 @@ export default function ConfigurePage() {
   const { registerGuard, unregisterGuard } = useNavigationGuard();
   const [companies, setCompanies] = useState<CompanyModel[]>([]);
   const [projects, setProjects] = useState<ProjectModel[]>([]);
+  const [roundToNearest15, setRoundToNearest15] = useState<boolean>(false);
   const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<ProjectModel[]>([]);
   const [didSave, setDidSave] = useState<boolean>(false);
@@ -124,7 +127,18 @@ export default function ConfigurePage() {
 
   useEffect(() => {
     loadSelectables();
+    // Load persisted rounding preference
+    if (typeof window !== 'undefined') {
+      setRoundToNearest15(localStorage.getItem(ROUND_15_KEY) === 'true');
+    }
   }, []);
+
+  const handleRoundToNearest15Change = (checked: boolean) => {
+    setRoundToNearest15(checked);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(ROUND_15_KEY, String(checked));
+    }
+  };
 
   const addCompany = () => {
     setCompanies((prev) => [...prev, { name: ''}]);
@@ -315,6 +329,21 @@ export default function ConfigurePage() {
               </div>
             ))}
             <button onClick={addCompany}>+ Add company</button>
+          </div>
+        </section>
+
+        {/* Global settings */}
+        <section>
+          <h2 style={{ margin: '0 0 8px 0' }}>Settings</h2>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={roundToNearest15}
+                onChange={(e) => handleRoundToNearest15Change(e.target.checked)}
+              />
+              Round reported durations to nearest 15 minutes
+            </label>
           </div>
         </section>
 
