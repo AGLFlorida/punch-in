@@ -54,9 +54,10 @@ export default function ConfigurePage() {
     return a.every((item, index) => compareFn(item, b[index]));
   };
 
-  // Compare company models
+  // Compare company models for unsaved-changes detection.
+  // _tempId is a UI-only React key, not part of logical identity — exclude it.
   const companyEqual = (a: UICompanyModel, b: UICompanyModel): boolean => {
-    return a.id === b.id && a.name === b.name && a._tempId === b._tempId;
+    return a.id === b.id && a.name === b.name;
   };
 
   // Compare project models
@@ -137,7 +138,8 @@ export default function ConfigurePage() {
   }
 
   const updateCompany = (i: number, v: string) => {
-    setCompanies((prev) => prev.map((c, idx) => (idx === i ? {name: v} : c)));
+    // Spread existing fields to preserve _tempId so the React key remains stable.
+    setCompanies((prev) => prev.map((c, idx) => (idx === i ? { ...c, name: v } : c)));
   }
 
   const handleDeleteCompanyClick = (i: number) => {
@@ -249,7 +251,7 @@ export default function ConfigurePage() {
         setDeletedCompanies([]); // need to reset state after mutation.
       }
 
-      const filteredCompanies = companies.filter((c: CompanyModel) => c.name.trim() != "")
+      const filteredCompanies = companies.filter((c: UICompanyModel) => c.name.trim() !== '')
       await window.tp.setCompanyList(filteredCompanies);
 
       if (deletedProjects.length > 0) {
@@ -259,7 +261,7 @@ export default function ConfigurePage() {
         setDeletedProjects([]); // need to reset state after mutation.
       }
 
-      const filteredProjects = projects.filter((p: ProjectModel) => p.company_id != -1)
+      const filteredProjects = projects.filter((p: ProjectModel) => p.company_id && p.company_id > 0)
       await window.tp.setProjectList(filteredProjects);
 
       // Load fresh data from DB and use it to update snapshot
