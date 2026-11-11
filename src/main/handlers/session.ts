@@ -106,22 +106,22 @@ export const sessionHandler = (services: ServiceManager) => {
 
     getLastClosedSession: () => {
       if (!svc) {
-        throw new Error("Session service not initialized.");
+        throw new Error('Session service not initialized.');
       }
       return svc.getLastClosedRow();
     },
 
     updateEndTime: (_e: IpcMainInvokeEvent, id: number, endTime: number): boolean => {
       if (!id) {
-        throw new Error("Missing session id.");
+        throw new Error('Missing session id.');
       }
 
       if (!endTime || endTime <= 0) {
-        throw new Error("Missing or invalid end time.");
+        throw new Error('Missing or invalid end time.');
       }
 
       if (!svc) {
-        throw new Error("Session service not initialized.");
+        throw new Error('Session service not initialized.');
       }
 
       return svc.updateEndTime(id, endTime);

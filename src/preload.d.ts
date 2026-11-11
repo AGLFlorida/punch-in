@@ -31,6 +31,8 @@ declare global {
       duration_ms: number;
     }>>;
     removeSession(id: number): Promise<boolean>;
+    getLastClosedSession(): Promise<{ id: number; task_id: number; start_time: number; end_time: number } | null>;
+    updateSessionEndTime(id: number, endTime: number): Promise<boolean>;
 
     // events
     onTick(cb: () => void): () => void;

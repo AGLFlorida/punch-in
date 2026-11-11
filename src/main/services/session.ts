@@ -178,8 +178,8 @@ export class SessionService implements ServiceInterface<SessionModel> {
       `SELECT id, task_id, start_time, end_time
        FROM session
        WHERE end_time IS NOT NULL AND is_active = 1
-       ORDER BY id DESC LIMIT 1`
-    ).get() as SessionRow | undefined;
+       ORDER BY end_time DESC LIMIT 1`
+    )?.get() as SessionRow | undefined;
 
     return row ?? null;
   }
@@ -201,7 +201,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
     // Fetch the session to validate constraints
     const row = this.db?.prepare(
       `SELECT start_time, end_time FROM session WHERE id = ? AND is_active = 1`
-    ).get(id) as { start_time: number; end_time: number | null } | undefined;
+    )?.get(id) as { start_time: number; end_time: number | null } | undefined;
 
     if (!row) {
       return false;
@@ -224,7 +224,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
 
     const res = this.db?.prepare(
       `UPDATE session SET end_time = ? WHERE id = ? AND is_active = 1 AND end_time IS NOT NULL`
-    ).run(endTime, id);
+    )?.run(endTime, id);
 
     return (res?.changes ?? 0) > 0;
   }

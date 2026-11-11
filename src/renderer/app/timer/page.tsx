@@ -125,6 +125,8 @@ function computeRestoredSelection(
   return { selectedTaskId: '', selectedProjectId: '', taskName: '', newTask: false, currentTask: null };
 }
 
+type LastStoppedSession = { id: number; startTs: number; endTs: number };
+
 export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | ''>('');
@@ -141,7 +143,6 @@ export default function TimerPage() {
   const [error, setError] = useState<{ title: string; body?: string } | null>(null);
 
   // State for the end-time correction panel shown after a session is stopped
-  type LastStoppedSession = { id: number; startTs: number; endTs: number };
   const [lastStoppedSession, setLastStoppedSession] = useState<LastStoppedSession | null>(null);
   const [editEndTime, setEditEndTime] = useState<string>('');
   const [editEndTimeError, setEditEndTimeError] = useState<string | null>(null);
@@ -567,10 +568,8 @@ export default function TimerPage() {
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof window !== 'undefined' && (window as any).tp?.updateSessionEndTime) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ok: boolean = await (window as any).tp.updateSessionEndTime(lastStoppedSession.id, parsedMs);
+    if (typeof window !== 'undefined' && window.tp?.updateSessionEndTime) {
+      const ok: boolean = await window.tp.updateSessionEndTime(lastStoppedSession.id, parsedMs);
       if (ok) {
         setEditSaved(true);
         setEditEndTimeError(null);
@@ -578,6 +577,8 @@ export default function TimerPage() {
       } else {
         setEditEndTimeError('Could not save the new end time. Please try again.');
       }
+    } else {
+      setEditEndTimeError('End time correction is not available in this environment.');
     }
   };
 
@@ -683,6 +684,7 @@ export default function TimerPage() {
               <input
                 type="datetime-local"
                 value={editEndTime}
+                min={epochMsToDatetimeLocal(lastStoppedSession.startTs + 60000)}
                 max={epochMsToDatetimeLocal(Date.now())}
                 onChange={(e) => {
                   setEditEndTime(e.target.value);
