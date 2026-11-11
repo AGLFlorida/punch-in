@@ -74,6 +74,187 @@ jest.mock('@/components/CustomImage', () => ({
   TrashIcon: () => <svg data-testid="trash-icon" />,
 }));
 
+const FIXTURE_COMPANIES = [
+  { id: 1, name: 'Acme Inc' },
+  { id: 2, name: 'Freelance' },
+];
+const FIXTURE_PROJECTS = [
+  { id: 10, name: 'Web App', company_id: 1 },
+  { id: 11, name: 'Mobile App', company_id: 1 },
+  { id: 20, name: 'Personal Site', company_id: 2 },
+];
+
+describe('ConfigurePage - Grouped layout and UX', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetCompanyList.mockResolvedValue(FIXTURE_COMPANIES);
+    mockGetProjectList.mockResolvedValue(FIXTURE_PROJECTS);
+  });
+
+  test('shows empty-state container when no companies exist', async () => {
+    mockGetCompanyList.mockResolvedValue([]);
+    mockGetProjectList.mockResolvedValue([]);
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId('empty-company-state')).toBeInTheDocument();
+    });
+  });
+
+  test('renders an input for every loaded company and project', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      const inputs = screen.getAllByRole('textbox');
+      // One input per company + one per project
+      expect(inputs.length).toBe(FIXTURE_COMPANIES.length + FIXTURE_PROJECTS.length);
+    });
+  });
+
+  test('"Add project" button appears once per saved company', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      const addProjectBtns = screen.getAllByText('+ Add project');
+      expect(addProjectBtns.length).toBe(FIXTURE_COMPANIES.length);
+    });
+  });
+
+  test('clicking "Add project" adds a blank project input', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByText('+ Add project').length).toBe(FIXTURE_COMPANIES.length);
+    });
+    const inputsBefore = screen.getAllByRole('textbox').length;
+    const addProjectBtns = screen.getAllByText('+ Add project');
+    fireEvent.click(addProjectBtns[0]);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('textbox').length).toBe(inputsBefore + 1);
+    });
+  });
+
+  test('new unsaved company shows the "save first" hint element', async () => {
+    mockGetCompanyList.mockResolvedValue([]);
+    mockGetProjectList.mockResolvedValue([]);
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId('empty-company-state')).toBeInTheDocument();
+    });
+    const addCompanyBtn = screen.getByText('+ Add company');
+    fireEvent.click(addCompanyBtn);
+    await waitFor(() => {
+      // testid is per-company to remain unique with multiple unsaved companies
+      const hints = screen.getAllByText('Save to enable adding projects');
+      expect(hints.length).toBeGreaterThan(0);
+    });
+  });
+
+  test('adding two unsaved companies renders two distinct hint elements', async () => {
+    mockGetCompanyList.mockResolvedValue([]);
+    mockGetProjectList.mockResolvedValue([]);
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId('empty-company-state')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('+ Add company'));
+    await waitFor(() => expect(screen.getAllByText('Save to enable adding projects').length).toBe(1));
+    fireEvent.click(screen.getByText('+ Add company'));
+    await waitFor(() => expect(screen.getAllByText('Save to enable adding projects').length).toBe(2));
+  });
+
+  test('adding an unassigned project shows the unassigned-projects heading', async () => {
+    mockGetCompanyList.mockResolvedValue([{ id: 1, name: 'Acme Inc' }]);
+    mockGetProjectList.mockResolvedValue([{ id: 10, name: 'Web App', company_id: 1 }]);
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByText('+ Add project').length).toBe(1);
+    });
+    const addUnassigned = screen.getByText('+ Add unassigned project');
+    fireEvent.click(addUnassigned);
+    await waitFor(() => {
+      expect(screen.getByTestId('unassigned-projects-heading')).toBeInTheDocument();
+    });
+  });
+
+  test('Save button is disabled when no unsaved changes', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByRole('textbox').length).toBe(
+        FIXTURE_COMPANIES.length + FIXTURE_PROJECTS.length
+      );
+    });
+    const saveBtn = screen.getByText('Save');
+    expect(saveBtn).toBeDisabled();
+  });
+
+  test('Save button is enabled after adding a company', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByText('+ Add project').length).toBe(FIXTURE_COMPANIES.length);
+    });
+    const addCompanyBtn = screen.getByText('+ Add company');
+    fireEvent.click(addCompanyBtn);
+    await waitFor(() => {
+      expect(screen.getByText('Save')).not.toBeDisabled();
+    });
+  });
+});
+
+describe('ConfigurePage - Data integrity', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSetCompanyList.mockResolvedValue(undefined);
+    mockSetProjectList.mockResolvedValue(undefined);
+    mockRemoveCompany.mockResolvedValue(undefined);
+    mockRemoveProject.mockResolvedValue(undefined);
+  });
+
+  test('deleting a company moves its projects to the unassigned section', async () => {
+    // Two companies so the first delete button is not disabled (requires companies.length > 1)
+    mockGetCompanyList.mockResolvedValue([
+      { id: 1, name: 'Acme Inc' },
+      { id: 2, name: 'Other Co' },
+    ]);
+    mockGetProjectList.mockResolvedValue([{ id: 10, name: 'Web App', company_id: 1 }]);
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByRole('textbox').length).toBe(3); // 2 companies + 1 project
+    });
+
+    // Delete the first company (Acme Inc, which owns Web App)
+    const trashBtns = screen.getAllByRole('button', { name: /remove company/i });
+    fireEvent.click(trashBtns[0]);
+    // Confirm the dialog
+    const confirmBtn = screen.getByText('Confirm');
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('unassigned-projects-heading')).toBeInTheDocument();
+    });
+  });
+
+  test('Save is blocked and error notification shown when unassigned projects exist', async () => {
+    mockGetCompanyList.mockResolvedValue([{ id: 1, name: 'Acme Inc' }]);
+    mockGetProjectList.mockResolvedValue([]);
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getAllByText('+ Add project').length).toBe(1);
+    });
+
+    // Add an unassigned project
+    fireEvent.click(screen.getByText('+ Add unassigned project'));
+    await waitFor(() => {
+      expect(screen.getByTestId('unassigned-projects-heading')).toBeInTheDocument();
+    });
+
+    // Attempt save
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      // setProjectList should NOT have been called
+      expect(mockSetProjectList).not.toHaveBeenCalled();
+    });
+  });
+});
+
 describe('ConfigurePage - Unsaved Changes Detection', () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -1,27 +1,32 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CompanyModel } from '../../../main/services/company';
 import type { ProjectModel } from '../../../main/services/project';
+
+/** UI-only extension: _tempId gives unsaved companies a stable React key. */
+type UICompanyModel = CompanyModel & { _tempId?: number };
 import { NotifyBox } from '@/components/Notify';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';
 import { useNavigationGuard } from '@/components/NavigationGuard';
 
 type SavedSnapshot = {
-  companies: CompanyModel[];
+  companies: UICompanyModel[];
   projects: ProjectModel[];
 };
 
 export default function ConfigurePage() {
   const router = useRouter();
   const { registerGuard, unregisterGuard } = useNavigationGuard();
-  const [companies, setCompanies] = useState<CompanyModel[]>([]);
+  const tempIdCounter = useRef(0);
+  const [companies, setCompanies] = useState<UICompanyModel[]>([]);
   const [projects, setProjects] = useState<ProjectModel[]>([]);
-  const [deletedCompanies, setDeletedCompanies] = useState<CompanyModel[]>([]);
+  const [deletedCompanies, setDeletedCompanies] = useState<UICompanyModel[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<ProjectModel[]>([]);
   const [didSave, setDidSave] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const savedSnapshotRef = useRef<SavedSnapshot | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -49,8 +54,9 @@ export default function ConfigurePage() {
     return a.every((item, index) => compareFn(item, b[index]));
   };
 
-  // Compare company models
-  const companyEqual = (a: CompanyModel, b: CompanyModel): boolean => {
+  // Compare company models for unsaved-changes detection.
+  // _tempId is a UI-only React key, not part of logical identity — exclude it.
+  const companyEqual = (a: UICompanyModel, b: UICompanyModel): boolean => {
     return a.id === b.id && a.name === b.name;
   };
 
@@ -127,11 +133,13 @@ export default function ConfigurePage() {
   }, []);
 
   const addCompany = () => {
-    setCompanies((prev) => [...prev, { name: ''}]);
+    const tempId = ++tempIdCounter.current;
+    setCompanies((prev) => [...prev, { name: '', _tempId: tempId }]);
   }
-  
+
   const updateCompany = (i: number, v: string) => {
-    setCompanies((prev) => prev.map((c, idx) => (idx === i ? {name: v} : c)));
+    // Spread existing fields to preserve _tempId so the React key remains stable.
+    setCompanies((prev) => prev.map((c, idx) => (idx === i ? { ...c, name: v } : c)));
   }
 
   const handleDeleteCompanyClick = (i: number) => {
@@ -145,23 +153,40 @@ export default function ConfigurePage() {
   };
 
   const removeCompany = (i: number) => {
-    setDeletedCompanies((prev) => [...prev, companies[i]]);
+    const removed = companies[i];
+    setDeletedCompanies((prev) => [...prev, removed]);
     setCompanies((prev) => prev.filter((_, idx) => idx !== i));
+    // Reassign any projects owned by this company to unassigned (-1)
+    // so they remain visible and manageable in the UI.
+    if (removed.id && removed.id > 0) {
+      setProjects((prev) =>
+        prev.map((p) => p.company_id === removed.id ? { ...p, company_id: -1 } : p)
+      );
+    }
   }
 
-  const addProject = () => 
+  /**
+   * Add a new project pre-assigned to a company.
+   * If the company has no saved id yet, the project defaults to company_id -1
+   * and the user will need to select the company manually.
+   */
+  const addProjectForCompany = (companyId: number | undefined) => {
+    setProjects((prev) => [...prev, { name: '', company_id: companyId && companyId > 0 ? companyId : -1 }]);
+  };
+
+  const addProject = () =>
     setProjects((prev) => [...prev, { name: '', company_id: -1 }]);
-  
+
   const updateProjectName = (i: number, v: string) =>
     setProjects((prev) => prev.map((p, idx) => (idx === i ? { ...p, name: v } : p)));
-  
+
   const updateProjectCompany = (i: number, v: number) => {
     return setProjects((prev) => prev.map((p, idx) => (idx === i ? {
-       ...p, 
-       company_id: v 
+       ...p,
+       company_id: v
       } : p)));
     }
-  
+
   const handleDeleteProjectClick = (i: number) => {
     const project = projects[i];
     setConfirmDialog({
@@ -196,7 +221,7 @@ export default function ConfigurePage() {
       const cos = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getCompanyList) ? await (window as any).tp.getCompanyList() : [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const projs = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getProjectList) ? await (window as any).tp.getProjectList() : [];
-      
+
       setCompanies(cos);
       setProjects(projs);
 
@@ -212,6 +237,12 @@ export default function ConfigurePage() {
   }
 
   const onSave = async () => {
+    // Block save when unassigned projects exist to prevent silent data loss.
+    const unassigned = projects.filter((p) => !p.company_id || p.company_id < 1);
+    if (unassigned.length > 0) {
+      setSaveError(`${unassigned.length} project${unassigned.length > 1 ? 's have' : ' has'} no company assigned. Assign a company or delete before saving.`);
+      return;
+    }
     try {
       if (deletedCompanies.length > 0) {
         for (const i in deletedCompanies) {
@@ -220,7 +251,7 @@ export default function ConfigurePage() {
         setDeletedCompanies([]); // need to reset state after mutation.
       }
 
-      const filteredCompanies = companies.filter((c: CompanyModel) => c.name.trim() != "")
+      const filteredCompanies = companies.filter((c: UICompanyModel) => c.name.trim() !== '')
       await window.tp.setCompanyList(filteredCompanies);
 
       if (deletedProjects.length > 0) {
@@ -230,7 +261,7 @@ export default function ConfigurePage() {
         setDeletedProjects([]); // need to reset state after mutation.
       }
 
-      const filteredProjects = projects.filter((p: ProjectModel) => p.company_id != -1)
+      const filteredProjects = projects.filter((p: ProjectModel) => p.company_id && p.company_id > 0)
       await window.tp.setProjectList(filteredProjects);
 
       // Load fresh data from DB and use it to update snapshot
@@ -244,7 +275,7 @@ export default function ConfigurePage() {
       setDidSave(true);
     } catch (e) {
       console.error(e);
-    } 
+    }
   };
 
   const handleConfirmUnsavedNavigation = () => {
@@ -264,12 +295,32 @@ export default function ConfigurePage() {
     setUnsavedChangesDialog({ isOpen: false, pendingNavigation: null });
   };
 
+  // Map company_id -> array of project indices for grouped display
+  const projectsByCompanyId = useMemo(() => {
+    const map = new Map<number, number[]>();
+    projects.forEach((p, idx) => {
+      const cid = p.company_id && p.company_id > 0 ? p.company_id : -1;
+      if (!map.has(cid)) map.set(cid, []);
+      map.get(cid)!.push(idx);
+    });
+    return map;
+  }, [projects]);
+
+  // Projects with no valid company assignment
+  const unassignedProjectIndices = projectsByCompanyId.get(-1) ?? [];
+
   return (
     <>
       {didSave && (
         <NotifyBox
-          opts={{ title: "Save Successful" }}
+          opts={{ title: 'Save Successful' }}
           close={() => setDidSave(false)}
+        />
+      )}
+      {saveError && (
+        <NotifyBox
+          opts={{ title: 'Cannot Save', body: saveError }}
+          close={() => setSaveError(null)}
         />
       )}
       <ConfirmDialog
@@ -289,69 +340,171 @@ export default function ConfigurePage() {
         cancelLabel="Cancel"
         confirmButtonStyle={{ background: '#2563eb' }}
       />
+
       <div className="header">
         <h1 className="title">Configure</h1>
-        <button onClick={onSave}>Save</button>
+        <button onClick={onSave} disabled={!hasUnsavedChanges} style={{ background: hasUnsavedChanges ? '#111827' : undefined, color: hasUnsavedChanges ? '#fff' : undefined, borderColor: hasUnsavedChanges ? '#111827' : undefined }}>Save</button>
       </div>
 
-      <div className="content" style={{ display: 'grid', gap: 24 }}>
-        {/* Companies */}
-        <section>
-          <h2 style={{ margin: '0 0 8px 0' }}>Companies</h2>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {companies.map((c, i) => (
-              <div key={`co-${i}`} className="row" style={{ alignItems: 'center' }}>
+      <div className="content" style={{ display: 'grid', gap: 16 }}>
+
+        {/* Empty state: guide first-time users */}
+        {companies.length === 0 && (
+          <div data-testid="empty-company-state" style={{ padding: '32px 16px', textAlign: 'center', border: '2px dashed #e5e7eb', borderRadius: 12, color: '#6b7280' }}>
+            <p style={{ margin: '0 0 4px 0', fontWeight: 600, fontSize: 15, color: '#1f2937' }}>No companies yet</p>
+            <p style={{ margin: '0 0 16px 0', fontSize: 13 }}>Start by adding a company, then add projects to it.</p>
+            <button onClick={addCompany} style={{ background: '#111827', color: '#fff', borderColor: '#111827' }}>+ Add company</button>
+          </div>
+        )}
+
+        {/* Companies with nested projects */}
+        {companies.map((c, ci) => {
+          const childProjectIndices = c.id && c.id > 0 ? (projectsByCompanyId.get(c.id) ?? []) : [];
+          const isNewCompany = !c.id || c.id <= 0;
+          // Use saved id or stable tempId as React key to avoid DOM misassignment on delete.
+          const companyKey = c.id && c.id > 0 ? `co-id-${c.id}` : `co-tmp-${c._tempId ?? ci}`;
+
+          return (
+            <div
+              key={companyKey}
+              style={{
+                border: '1px solid #e5e7eb',
+                borderRadius: 10,
+                overflow: 'hidden',
+              }}
+            >
+              {/* Company row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#f3f4f6', borderBottom: childProjectIndices.length > 0 || !isNewCompany ? '1px solid #e5e7eb' : undefined }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: '#6b7280', textTransform: 'uppercase', minWidth: 60 }}>Company</span>
                 <input
                   type="text"
-                  placeholder={`Company ${i + 1}`}
+                  placeholder={`Company ${ci + 1}`}
                   value={c.name}
-                  onChange={(e) => updateCompany(i, e.target.value)}
-                  style={{ flex: 2, minWidth: 200 }}
+                  onChange={(e) => updateCompany(ci, e.target.value)}
+                  style={{ flex: 1, minWidth: 160 }}
                   disabled={(c.id !== undefined && c.id > 0)}
+                  aria-label={`Company ${ci + 1} name`}
                 />
-                <button onClick={() => handleDeleteCompanyClick(i)} disabled={companies.length <= 1} aria-label="Remove company" title="Remove company" style={{ padding: 8 }}>
+                <button
+                  onClick={() => handleDeleteCompanyClick(ci)}
+                  disabled={companies.length <= 1}
+                  aria-label="Remove company"
+                  title="Remove company"
+                  style={{ padding: 8 }}
+                >
                   <TrashIcon />
                 </button>
               </div>
-            ))}
+
+              {/* Projects nested under this company */}
+              {childProjectIndices.map((pi) => {
+                const p = projects[pi];
+                return (
+                  <div key={`proj-${pi}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px 8px 32px', borderBottom: '1px solid #f3f4f6', background: '#fff' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: '#9ca3af', textTransform: 'uppercase', minWidth: 60 }}>Project</span>
+                    <input
+                      type="text"
+                      placeholder={`Project ${pi + 1}`}
+                      value={p.name}
+                      onChange={(e) => updateProjectName(pi, e.target.value)}
+                      style={{ flex: 1, minWidth: 160 }}
+                      disabled={(p.id !== undefined && p.id > 0)}
+                      aria-label={`Project ${pi + 1} name`}
+                    />
+                    <button
+                      onClick={() => handleDeleteProjectClick(pi)}
+                      aria-label="Remove project"
+                      title="Remove project"
+                      style={{ padding: 8 }}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                );
+              })}
+
+              {/* Add project within company (only for saved companies) */}
+              <div style={{ padding: '8px 12px 8px 32px', background: '#fff' }}>
+                {isNewCompany ? (
+                  <span data-testid={`new-company-hint-${companyKey}`} style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>Save to enable adding projects</span>
+                ) : (
+                  <button
+                    onClick={() => addProjectForCompany(c.id)}
+                    style={{ fontSize: 13, padding: '5px 10px' }}
+                    aria-label={`Add project to ${c.name}`}
+                  >
+                    + Add project
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Add company button (shown when companies already exist) */}
+        {companies.length > 0 && (
+          <div>
             <button onClick={addCompany}>+ Add company</button>
           </div>
-        </section>
+        )}
 
-        {/* Projects */}
-        <section>
-          <h2 style={{ margin: '0 0 8px 0' }}>Projects</h2>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {projects.map((p, i) => (
-              <div key={`proj-${i}`} className="row" style={{ alignItems: 'center' }}>
-                <input
-                  type="text"
-                  placeholder={`Project ${i + 1}`}
-                  value={p.name}
-                  onChange={(e) => updateProjectName(i, e.target.value)}
-                  style={{ flex: 2, minWidth: 200 }}
-                  disabled={(p.id !== undefined && p.id > 0)}
-                />
-                <select
-                  value={p.company_id ?? -1}
-                  onChange={(e) => updateProjectCompany(i, Number(e.target.value))}
-                  style={{ flex: 1, minWidth: 160 }}
-                >
-                  <option key={-1} value={-1}>{'Select a company'}</option>
-                  {(companies.length ? companies : []).map((co) => ( (co.id && co.id >= 0) &&
-                    <option key={co.id} value={co.id}>
-                      {co.name || ''}
-                    </option>
-                  ))}
-                </select>
-                <button onClick={() => handleDeleteProjectClick(i)} aria-label="Remove project" title="Remove project" style={{ padding: 8 }}>
-                  <TrashIcon />
-                </button>
-              </div>
-            ))}
-            <button onClick={addProject}>+ Add project</button>
+        {/* Unassigned projects (company_id missing or -1) */}
+        {unassignedProjectIndices.length > 0 && (
+          <div style={{ border: '1px solid #fca5a5', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ padding: '8px 12px', background: '#fee2e2', borderBottom: '1px solid #fca5a5' }}>
+              <span data-testid="unassigned-projects-heading" style={{ fontSize: 13, fontWeight: 600, color: '#991b1b' }}>Unassigned projects</span>
+              <span style={{ fontSize: 12, color: '#b91c1c', marginLeft: 8 }}>Assign a company before saving</span>
+            </div>
+            {unassignedProjectIndices.map((pi) => {
+              const p = projects[pi];
+              return (
+                <div key={`proj-unassigned-${pi}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid #fecaca', background: '#fff' }}>
+                  <input
+                    type="text"
+                    placeholder={`Project ${pi + 1}`}
+                    value={p.name}
+                    onChange={(e) => updateProjectName(pi, e.target.value)}
+                    style={{ flex: 2, minWidth: 160 }}
+                    disabled={(p.id !== undefined && p.id > 0)}
+                    aria-label={`Unassigned project ${pi + 1} name`}
+                  />
+                  <select
+                    value={p.company_id ?? -1}
+                    onChange={(e) => updateProjectCompany(pi, Number(e.target.value))}
+                    style={{ flex: 1, minWidth: 160 }}
+                    aria-label={`Unassigned project ${pi + 1} company`}
+                  >
+                    <option value={-1}>Select a company</option>
+                    {companies.map((co, ci) => co.id && co.id > 0 ? (
+                      <option key={co.id} value={co.id}>
+                        {co.name || ''}
+                      </option>
+                    ) : (
+                      <option key={`new-co-${ci}`} value={-1} disabled>
+                        {co.name ? `${co.name} (unsaved)` : `Company ${ci + 1} (unsaved)`}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleDeleteProjectClick(pi)}
+                    aria-label="Remove project"
+                    title="Remove project"
+                    style={{ padding: 8 }}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        </section>
+        )}
+
+        {/* Fallback: add project manually (available whenever at least one saved company exists) */}
+        {companies.some((c) => c.id && c.id > 0) && (
+          <div>
+            <button onClick={addProject}>+ Add unassigned project</button>
+          </div>
+        )}
       </div>
     </>
   );
