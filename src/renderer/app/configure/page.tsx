@@ -11,6 +11,7 @@ import { NotifyBox } from '@/components/Notify';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';
 import { useNavigationGuard } from '@/components/NavigationGuard';
+import { ROUND_15_KEY } from '@/lib/constants';
 
 type SavedSnapshot = {
   companies: UICompanyModel[];
@@ -23,6 +24,7 @@ export default function ConfigurePage() {
   const tempIdCounter = useRef(0);
   const [companies, setCompanies] = useState<UICompanyModel[]>([]);
   const [projects, setProjects] = useState<ProjectModel[]>([]);
+  const [roundToNearest15, setRoundToNearest15] = useState<boolean>(false);
   const [deletedCompanies, setDeletedCompanies] = useState<UICompanyModel[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<ProjectModel[]>([]);
   const [didSave, setDidSave] = useState<boolean>(false);
@@ -130,7 +132,18 @@ export default function ConfigurePage() {
 
   useEffect(() => {
     loadSelectables();
+    // Load persisted rounding preference
+    if (typeof window !== 'undefined') {
+      setRoundToNearest15(localStorage.getItem(ROUND_15_KEY) === 'true');
+    }
   }, []);
+
+  const handleRoundToNearest15Change = (checked: boolean) => {
+    setRoundToNearest15(checked);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(ROUND_15_KEY, String(checked));
+    }
+  };
 
   const addCompany = () => {
     const tempId = ++tempIdCounter.current;
@@ -447,6 +460,21 @@ export default function ConfigurePage() {
             <button onClick={addCompany}>+ Add company</button>
           </div>
         )}
+
+        {/* Global settings */}
+        <section>
+          <h2 style={{ margin: '0 0 8px 0' }}>Settings</h2>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={roundToNearest15}
+                onChange={(e) => handleRoundToNearest15Change(e.target.checked)}
+              />
+              Round reported durations to nearest 15 minutes
+            </label>
+          </div>
+        </section>
 
         {/* Unassigned projects (company_id missing or -1) */}
         {unassignedProjectIndices.length > 0 && (
