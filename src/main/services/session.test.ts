@@ -470,5 +470,86 @@ describe('SessionService', () => {
       expect(service.updateEndTime(id, now - 500)).toBe(false);
     });
   });
+
+  describe('addBreakTime', () => {
+    test('accumulates break time on an open session', () => {
+      const now = Date.now();
+      const sessionId = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)')
+        .run(testTaskId, now - 60000).lastInsertRowid as number;
+
+      const result = service.addBreakTime(sessionId, 300000); // 5 minutes
+      expect(result).toBe(true);
+
+      const row = db.prepare('SELECT break_ms FROM session WHERE id = ?').get(sessionId) as { break_ms: number };
+      expect(row.break_ms).toBe(300000);
+    });
+
+    test('accumulates multiple breaks on the same session', () => {
+      const now = Date.now();
+      const sessionId = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)')
+        .run(testTaskId, now - 120000).lastInsertRowid as number;
+
+      service.addBreakTime(sessionId, 300000); // first break: 5 min
+      service.addBreakTime(sessionId, 180000); // second break: 3 min
+
+      const row = db.prepare('SELECT break_ms FROM session WHERE id = ?').get(sessionId) as { break_ms: number };
+      expect(row.break_ms).toBe(480000); // 8 min total
+    });
+
+    test('returns false for id = 0', () => {
+      expect(service.addBreakTime(0, 60000)).toBe(false);
+    });
+
+    test('returns false when breakMs is 0 or negative', () => {
+      const now = Date.now();
+      const sessionId = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)')
+        .run(testTaskId, now - 60000).lastInsertRowid as number;
+
+      expect(service.addBreakTime(sessionId, 0)).toBe(false);
+      expect(service.addBreakTime(sessionId, -1000)).toBe(false);
+    });
+
+    test('returns false for non-existent session', () => {
+      expect(service.addBreakTime(99999, 60000)).toBe(false);
+    });
+
+    test('returns false for already-closed session (end_time IS NOT NULL)', () => {
+      const now = Date.now();
+      const sessionId = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, now - 5000, now - 1000).lastInsertRowid as number;
+
+      expect(service.addBreakTime(sessionId, 60000)).toBe(false);
+    });
+
+    test('getAllWithDetails subtracts break_ms from duration', () => {
+      const now = Date.now();
+      const startTime = now - 60000;
+      const endTime = now - 1000;
+      const breakMs = 300000; // 5 minutes break
+
+      db.prepare('INSERT INTO session (task_id, start_time, end_time, break_ms) VALUES (?, ?, ?, ?)')
+        .run(testTaskId, startTime, endTime, breakMs);
+
+      const result = service.getAllWithDetails();
+      expect(result).toHaveLength(1);
+      // Raw duration = endTime - startTime; subtract breakMs
+      const expected = Math.max(0, (endTime - startTime) - breakMs);
+      expect(result[0].duration_ms).toBe(expected);
+    });
+
+    test('getAllWithDetails never returns negative duration', () => {
+      const now = Date.now();
+      const startTime = now - 60000;
+      const endTime = now - 1000;
+      // break_ms larger than the session duration
+      const breakMs = 999999999;
+
+      db.prepare('INSERT INTO session (task_id, start_time, end_time, break_ms) VALUES (?, ?, ?, ?)')
+        .run(testTaskId, startTime, endTime, breakMs);
+
+      const result = service.getAllWithDetails();
+      expect(result[0].duration_ms).toBe(0);
+    });
+  });
 });
 

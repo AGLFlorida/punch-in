@@ -42,6 +42,7 @@ export const stateHandler = (services: ServiceManager) => {
       return {
         running: true,
         startTs: startTs,
+        sessionId: sessionRow.id,
         currentTask: currentTask
       };
     },

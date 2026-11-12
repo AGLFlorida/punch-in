@@ -125,6 +125,22 @@ export const sessionHandler = (services: ServiceManager) => {
       }
 
       return svc.updateEndTime(id, endTime);
+    },
+
+    addBreakTime: (_e: IpcMainInvokeEvent, id: number, breakMs: number): boolean => {
+      if (!id) {
+        throw new Error('Missing session id.');
+      }
+
+      if (!breakMs || breakMs <= 0) {
+        throw new Error('Missing or invalid break duration.');
+      }
+
+      if (!svc) {
+        throw new Error('Session service not initialized.');
+      }
+
+      return svc.addBreakTime(id, breakMs);
     }
   }
 }

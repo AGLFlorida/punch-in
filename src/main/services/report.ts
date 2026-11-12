@@ -47,20 +47,21 @@ export class ReportService implements ServiceInterface<ReportModel> {
             s.task_id,
             s.is_active AS session_is_active,
             CAST(s.start_time / 1000 AS INTEGER) AS start_s,
-            CAST(s.end_time   / 1000 AS INTEGER) AS end_s
+            CAST(s.end_time   / 1000 AS INTEGER) AS end_s,
+            CAST(COALESCE(s.break_ms, 0) / 1000 AS INTEGER) AS break_s
           FROM "session" s
           WHERE s.end_time IS NOT NULL
         ),
         -- one row per calendar day touched
-        expanded(day, id, task_id, session_is_active, start_s, end_s) AS (
+        expanded(day, id, task_id, session_is_active, start_s, end_s, break_s) AS (
           SELECT
             DATE(start_s, 'unixepoch') AS day,
-            id, task_id, session_is_active, start_s, end_s
+            id, task_id, session_is_active, start_s, end_s, break_s
           FROM normalized
           UNION ALL
           SELECT
             DATE(DATETIME(day, '+1 day')) AS day,
-            id, task_id, session_is_active, start_s, end_s
+            id, task_id, session_is_active, start_s, end_s, break_s
           FROM expanded
           WHERE DATETIME(day, '+1 day') < DATE(end_s, 'unixepoch', '+1 day')
         ),
@@ -74,7 +75,8 @@ export class ReportService implements ServiceInterface<ReportModel> {
             CAST(STRFTIME('%s', day) AS INTEGER) AS day_start_s,
             CAST(STRFTIME('%s', DATETIME(day, '+1 day')) AS INTEGER) AS day_end_s,
             start_s,
-            end_s
+            end_s,
+            break_s
           FROM expanded
         ),
         segments AS (
@@ -84,25 +86,35 @@ export class ReportService implements ServiceInterface<ReportModel> {
             day,
             session_is_active,
             MAX(start_s, day_start_s) AS seg_start,
-            MIN(end_s,   day_end_s)   AS seg_end
+            MIN(end_s,   day_end_s)   AS seg_end,
+            CASE WHEN DATE(start_s, 'unixepoch') = day THEN break_s ELSE 0 END AS day_break_s
           FROM per_day
+        ),
+        raw_totals AS (
+          SELECT
+            task_id,
+            day,
+            MAX(session_is_active) AS session_is_active,
+            SUM(CASE WHEN (seg_end - seg_start) > 0 THEN (seg_end - seg_start) ELSE 0 END) - SUM(day_break_s) AS net_s
+          FROM segments
+          GROUP BY task_id, day
         )
         SELECT
           c.name AS company_name,
           p.name AS project_name,
           t.name AS task_name,
-          s.day  AS day,
-          SUM(CASE WHEN (s.seg_end - s.seg_start) > 0 THEN (s.seg_end - s.seg_start) ELSE 0 END) AS total_seconds,
-          MAX(CASE 
-            WHEN s.session_is_active = 0 OR t.is_active = 0 OR p.is_active = 0 OR c.is_active = 0 
-            THEN 1 
-            ELSE 0 
+          r.day  AS day,
+          CASE WHEN r.net_s > 0 THEN r.net_s ELSE 0 END AS total_seconds,
+          MAX(CASE
+            WHEN r.session_is_active = 0 OR t.is_active = 0 OR p.is_active = 0 OR c.is_active = 0
+            THEN 1
+            ELSE 0
           END) AS is_deleted
-        FROM segments s
-        JOIN task    t ON t.id = s.task_id
+        FROM raw_totals r
+        JOIN task    t ON t.id = r.task_id
         JOIN project p ON p.id = t.project_id
         JOIN company c ON c.id = p.company_id
-        GROUP BY c.name, p.name, t.name, t.id, s.day
+        GROUP BY c.name, p.name, t.name, t.id, r.day
       `;
     }
 

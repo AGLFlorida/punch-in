@@ -64,6 +64,27 @@ export default function DevTPStub() {
       // tasks & sessions
       getTasks: async (): Promise<TaskModel[]> => tasks.slice(),
       getSessions: async (): Promise<SessionModel[]> => sessions.slice(),
+      getAllSessionsWithDetails: async () => {
+        const now = Date.now();
+        return sessions.map(s => {
+          const project = projects.find(p => p.id === s.task?.project_id);
+          const company = companies.find(c => c.id === project?.company_id);
+          const sr = s as unknown as { id: number; start_time: Date; end_time: Date | null; break_ms?: number };
+          const startMs = sr.start_time instanceof Date ? sr.start_time.getTime() : (sr.start_time as unknown as number);
+          const endMs = sr.end_time instanceof Date ? sr.end_time.getTime() : (sr.end_time != null ? (sr.end_time as unknown as number) : null);
+          const rawDuration = endMs !== null ? (endMs - startMs) : (now - startMs);
+          const breakMs = sr.break_ms ?? 0;
+          return {
+            id: sr.id,
+            company_name: company?.name ?? 'Unknown Company',
+            project_name: project?.name ?? 'Unknown Project',
+            task_name: s.task?.name ?? 'Unknown Task',
+            start_time: startMs,
+            end_time: endMs,
+            duration_ms: Math.max(0, rawDuration - breakMs),
+          };
+        });
+      },
 
       // start returns a task id (matching main process contract when creating a task)
       start: async (task: TaskModel) => {
@@ -108,6 +129,20 @@ export default function DevTPStub() {
           start_time: s.start_time instanceof Date ? s.start_time.getTime() : s.start_time,
           end_time: s.end_time instanceof Date ? s.end_time.getTime() : s.end_time,
         };
+      },
+
+      addBreakTime: async (id: number, breakMs: number): Promise<boolean> => {
+        const session = sessions.find(s => {
+          const rowData = s as unknown as { id: number };
+          return rowData.id === id;
+        });
+        if (!session) return false;
+        const sessionRow = session as unknown as { end_time: Date | null; break_ms?: number };
+        // Only update open sessions
+        if (sessionRow.end_time !== null) return false;
+        if (breakMs <= 0) return false;
+        sessionRow.break_ms = (sessionRow.break_ms ?? 0) + breakMs;
+        return true;
       },
 
       updateSessionEndTime: async (id: number, endTime: number): Promise<boolean> => {

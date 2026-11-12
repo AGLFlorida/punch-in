@@ -33,6 +33,7 @@ declare global {
     removeSession(id: number): Promise<boolean>;
     getLastClosedSession(): Promise<{ id: number; task_id: number; start_time: number; end_time: number } | null>;
     updateSessionEndTime(id: number, endTime: number): Promise<boolean>;
+    addBreakTime(id: number, breakMs: number): Promise<boolean>;
 
     // events
     onTick(cb: () => void): () => void;
@@ -43,6 +44,7 @@ declare global {
     running: boolean;
     currentTask: TaskModel;
     startTs: number | null; // epoch ms
+    sessionId?: number; // current open session id
   }
 
   interface Window {

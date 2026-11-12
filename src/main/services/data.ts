@@ -235,9 +235,10 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id     INTEGER NOT NULL,
         start_time     DATETIME NOT NULL,
-        end_time       DATETIME, 
+        end_time       DATETIME,
+        break_ms    INTEGER NOT NULL DEFAULT 0,
         is_active   BOOLEAN NOT NULL DEFAULT 1,
-        deleted_at  DATETIME,                
+        deleted_at  DATETIME,
         created_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         updated_at  DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         CONSTRAINT fk_session_task
@@ -274,8 +275,8 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
 
       -- Drop and recreate report view to ensure it has the latest filters
       DROP VIEW IF EXISTS v_task_daily_totals_exact;
-      
-      -- report view
+
+      -- report view (break_ms is subtracted from totals so pomodoro breaks are excluded)
       CREATE VIEW v_task_daily_totals_exact AS
       WITH
       -- completed sessions only; convert ms → sec (INTEGER)
@@ -284,22 +285,23 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
           s.id,
           s.task_id,
           CAST(s.start_time / 1000 AS INTEGER) AS start_s,
-          CAST(s.end_time   / 1000 AS INTEGER) AS end_s
+          CAST(s.end_time   / 1000 AS INTEGER) AS end_s,
+          CAST(COALESCE(s.break_ms, 0) / 1000 AS INTEGER) AS break_s
         FROM "session" s
         WHERE s.end_time IS NOT NULL
           AND s.is_active = 1
       ),
 
       -- one row per calendar day touched
-      expanded(day, id, task_id, start_s, end_s) AS (
+      expanded(day, id, task_id, start_s, end_s, break_s) AS (
         SELECT
           DATE(start_s, 'unixepoch') AS day,
-          id, task_id, start_s, end_s
+          id, task_id, start_s, end_s, break_s
         FROM normalized
         UNION ALL
         SELECT
           DATE(DATETIME(day, '+1 day')) AS day,
-          id, task_id, start_s, end_s
+          id, task_id, start_s, end_s, break_s
         FROM expanded
         WHERE DATETIME(day, '+1 day') < DATE(end_s, 'unixepoch', '+1 day')
       ),
@@ -314,7 +316,8 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
           CAST(STRFTIME('%s', day) AS INTEGER)              AS day_start_s,
           CAST(STRFTIME('%s', DATETIME(day, '+1 day')) AS INTEGER) AS day_end_s,
           start_s,
-          end_s
+          end_s,
+          break_s
         FROM expanded
       ),
       segments AS (
@@ -323,27 +326,43 @@ function createScema(db: PunchinDatabase): PunchinDatabase {
           task_id,
           day,
           MAX(start_s, day_start_s) AS seg_start,
-          MIN(end_s,   day_end_s)   AS seg_end
+          MIN(end_s,   day_end_s)   AS seg_end,
+          -- Deduct break only on the first day of the session to avoid double-counting
+          CASE WHEN DATE(start_s, 'unixepoch') = day THEN break_s ELSE 0 END AS day_break_s
         FROM per_day
+      ),
+      raw_totals AS (
+        SELECT
+          task_id,
+          day,
+          SUM(CASE WHEN (seg_end - seg_start) > 0 THEN (seg_end - seg_start) ELSE 0 END) - SUM(day_break_s) AS net_s
+        FROM segments
+        GROUP BY task_id, day
       )
       SELECT
         c.name AS company_name,
         p.name AS project_name,
         t.name AS task_name,
         t.id   AS task_id,
-        s.day  AS day,
-        SUM(CASE WHEN (s.seg_end - s.seg_start) > 0 THEN (s.seg_end - s.seg_start) ELSE 0 END) AS total_seconds,
-        ROUND(SUM(CASE WHEN (s.seg_end - s.seg_start) > 0 THEN (s.seg_end - s.seg_start) ELSE 0 END) / 3600.0, 2) AS total_hours
-      FROM segments s
-      JOIN task    t ON t.id = s.task_id AND t.is_active = 1
+        r.day  AS day,
+        CASE WHEN r.net_s > 0 THEN r.net_s ELSE 0 END AS total_seconds,
+        ROUND(CASE WHEN r.net_s > 0 THEN r.net_s ELSE 0 END / 3600.0, 2) AS total_hours
+      FROM raw_totals r
+      JOIN task    t ON t.id = r.task_id AND t.is_active = 1
       JOIN project p ON p.id = t.project_id AND p.is_active = 1
       JOIN company c ON c.id = p.company_id AND c.is_active = 1
-      GROUP BY c.name, p.name, t.name, t.id, s.day
-      ORDER BY c.name, p.name, t.name, s.day;
+      ORDER BY c.name, p.name, t.name, r.day;
 
       CREATE INDEX IF NOT EXISTS idx_session_open ON session(end_time);
       CREATE INDEX IF NOT EXISTS idx_session_project ON session(task_id);
     `);
+
+    // Migration: add break_ms to existing session tables that pre-date this column
+    try {
+      db.exec(`ALTER TABLE "session" ADD COLUMN break_ms INTEGER NOT NULL DEFAULT 0`);
+    } catch {
+      // Column already exists — safe to ignore duplicate-column errors
+    }
   } catch (e) {
     if (process.env.ENV == 'development') {
       console.error("[DEBUG:ERROR] Error creating db schema");
