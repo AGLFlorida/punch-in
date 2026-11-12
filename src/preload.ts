@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('tp', {
   removeSession: (id: number) => ipcRenderer.invoke('tp:removeSession', id),
   updateSessionEndTime: (id: number, endTime: number): Promise<boolean> => ipcRenderer.invoke('tp:updateSessionEndTime', id, endTime),
   getLastClosedSession: () => ipcRenderer.invoke('tp:getLastClosedSession'),
+  addBreakTime: (id: number, breakMs: number): Promise<boolean> => ipcRenderer.invoke('tp:addBreakTime', id, breakMs),
   removeCompany: (id: number) => ipcRenderer.invoke('tp:removeCompany', id),
   getTasks: (): Promise<TaskModel[]> => ipcRenderer.invoke('tp:getTasks'),
   getReport: (includeDeleted?: boolean) => ipcRenderer.invoke('tp:getReport', includeDeleted ?? false), // TODO get by date range.

@@ -42,6 +42,7 @@ ipcMain.handle('tp:getAllSessionsWithDetails', sessh.getAllWithDetails);
 ipcMain.handle('tp:removeSession', sessh.removeSession);
 ipcMain.handle('tp:updateSessionEndTime', sessh.updateEndTime);
 ipcMain.handle('tp:getLastClosedSession', sessh.getLastClosedSession);
+ipcMain.handle('tp:addBreakTime', sessh.addBreakTime);
 
 // report handlers
 ipcMain.handle('tp:getReport', r.get)

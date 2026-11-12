@@ -4,14 +4,14 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CompanyModel } from '../../../main/services/company';
 import type { ProjectModel } from '../../../main/services/project';
-
-/** UI-only extension: _tempId gives unsaved companies a stable React key. */
-type UICompanyModel = CompanyModel & { _tempId?: number };
 import { NotifyBox } from '@/components/Notify';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';
 import { useNavigationGuard } from '@/components/NavigationGuard';
-import { ROUND_15_KEY } from '@/lib/constants';
+import { LS_POMODORO_MODE, ROUND_15_KEY } from '@/lib/constants';
+
+/** UI-only extension: _tempId gives unsaved companies a stable React key. */
+type UICompanyModel = CompanyModel & { _tempId?: number };
 
 type SavedSnapshot = {
   companies: UICompanyModel[];
@@ -31,6 +31,7 @@ export default function ConfigurePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const savedSnapshotRef = useRef<SavedSnapshot | null>(null);
+  const [pomodoroEnabled, setPomodoroEnabled] = useState<boolean>(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     type: 'company' | 'project' | null;
@@ -137,6 +138,20 @@ export default function ConfigurePage() {
       setRoundToNearest15(localStorage.getItem(ROUND_15_KEY) === 'true');
     }
   }, []);
+
+  // Load pomodoro mode from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem(LS_POMODORO_MODE);
+    setPomodoroEnabled(stored === 'true');
+  }, []);
+
+  const handlePomodoroToggle = (enabled: boolean) => {
+    setPomodoroEnabled(enabled);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LS_POMODORO_MODE, String(enabled));
+    }
+  };
 
   const handleRoundToNearest15Change = (checked: boolean) => {
     setRoundToNearest15(checked);
@@ -533,6 +548,32 @@ export default function ConfigurePage() {
             <button onClick={addProject}>+ Add unassigned project</button>
           </div>
         )}
+
+        {/* Pomodoro mode */}
+        <div
+          data-testid="pomodoro-section"
+          style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: '16px', marginTop: 8 }}
+        >
+          <div style={{ marginBottom: 6 }}>
+            <span style={{ fontWeight: 600, fontSize: 15 }}>Behavior</span>
+          </div>
+          <label
+            htmlFor="pomodoro-toggle"
+            style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}
+          >
+            <input
+              id="pomodoro-toggle"
+              data-testid="pomodoro-toggle"
+              type="checkbox"
+              checked={pomodoroEnabled}
+              onChange={(e) => handlePomodoroToggle(e.target.checked)}
+              style={{ width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 14 }}>
+              <strong>Pomodoro mode</strong> — alert after 50&nbsp;min, resume after a 10-min break
+            </span>
+          </label>
+        </div>
       </div>
     </>
   );

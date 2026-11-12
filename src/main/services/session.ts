@@ -17,6 +17,7 @@ export interface SessionRow {
   task_id: number;
   start_time: number; // epoch milliseconds
   end_time: number | null;
+  break_ms: number; // accumulated pomodoro break duration in milliseconds
 }
 
 export class SessionService implements ServiceInterface<SessionModel> {
@@ -44,7 +45,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
    */
   getOneRow(): SessionRow | null {
     const row = this.db?.prepare(`
-      SELECT id, task_id, start_time, end_time 
+      SELECT id, task_id, start_time, end_time, break_ms
       FROM session
       WHERE end_time IS NULL
       ORDER BY id DESC LIMIT 1
@@ -105,7 +106,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
    */
   getOpenRowsBeforeTime(cutoff: number): SessionRow[] {
     const rows = this.db?.prepare(
-      `SELECT id, task_id, start_time, end_time
+      `SELECT id, task_id, start_time, end_time, break_ms
        FROM session
        WHERE end_time IS NULL AND is_active = 1 AND start_time < ?
        ORDER BY start_time ASC`
@@ -136,13 +137,14 @@ export class SessionService implements ServiceInterface<SessionModel> {
   }> {
     const now = Date.now();
     const rows = this.db?.prepare(`
-      SELECT 
+      SELECT
         s.id,
         c.name AS company_name,
         p.name AS project_name,
         t.name AS task_name,
         s.start_time,
-        s.end_time
+        s.end_time,
+        COALESCE(s.break_ms, 0) AS break_ms
       FROM session s
       JOIN task t ON t.id = s.task_id AND t.is_active = 1
       JOIN project p ON p.id = t.project_id AND p.is_active = 1
@@ -156,15 +158,43 @@ export class SessionService implements ServiceInterface<SessionModel> {
       task_name: string;
       start_time: number;
       end_time: number | null;
+      break_ms: number;
     }>;
-    
-    // Calculate duration in JavaScript to handle running sessions correctly
+
+    // Calculate duration in JavaScript, subtracting pomodoro break time
     return (rows ?? []).map(row => ({
-      ...row,
-      duration_ms: row.end_time !== null 
-        ? (row.end_time - row.start_time)
-        : (now - row.start_time)
+      id: row.id,
+      company_name: row.company_name,
+      project_name: row.project_name,
+      task_name: row.task_name,
+      start_time: row.start_time,
+      end_time: row.end_time,
+      duration_ms: Math.max(
+        0,
+        (row.end_time !== null ? (row.end_time - row.start_time) : (now - row.start_time)) - row.break_ms
+      )
     }));
+  }
+
+  /**
+   * Accumulate pomodoro break time for an open session.
+   * Adds `breakMs` to the session's existing break_ms total.
+   * Only updates sessions that are currently open (end_time IS NULL).
+   *
+   * @param id      - session ID to update
+   * @param breakMs - break duration in milliseconds to add
+   * @returns true if the session was updated
+   */
+  addBreakTime(id: number, breakMs: number): boolean {
+    if (!id || !breakMs || breakMs <= 0) {
+      return false;
+    }
+
+    const res = this.db?.prepare(
+      `UPDATE session SET break_ms = break_ms + ? WHERE id = ? AND end_time IS NULL AND is_active = 1`
+    )?.run(breakMs, id);
+
+    return (res?.changes ?? 0) > 0;
   }
 
   /**
@@ -175,7 +205,7 @@ export class SessionService implements ServiceInterface<SessionModel> {
    */
   getLastClosedRow(): SessionRow | null {
     const row = this.db?.prepare(
-      `SELECT id, task_id, start_time, end_time
+      `SELECT id, task_id, start_time, end_time, break_ms
        FROM session
        WHERE end_time IS NOT NULL AND is_active = 1
        ORDER BY end_time DESC LIMIT 1`

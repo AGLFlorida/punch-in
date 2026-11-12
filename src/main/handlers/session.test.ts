@@ -223,5 +223,44 @@ describe('sessionHandler', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('addBreakTime', () => {
+    test('throws when session id is missing', () => {
+      expect(() =>
+        handler.addBreakTime({} as IpcMainInvokeEvent, 0, 5000)
+      ).toThrow('Missing session id.');
+    });
+
+    test('throws when breakMs is zero or negative', () => {
+      expect(() =>
+        handler.addBreakTime({} as IpcMainInvokeEvent, 1, 0)
+      ).toThrow('Missing or invalid break duration.');
+    });
+
+    test('throws when session service is not initialized', () => {
+      const nullServices = createMockServiceManager({
+        session: () => null as unknown as SessionService,
+        task: () => mockTaskService as TaskService,
+      });
+      const nullHandler = sessionHandler(nullServices);
+      expect(() =>
+        nullHandler.addBreakTime({} as IpcMainInvokeEvent, 1, 5000)
+      ).toThrow('Session service not initialized.');
+    });
+
+    test('returns true when service records the break', () => {
+      mockSessionService.addBreakTime = () => true;
+      handler = sessionHandler(mockServices);
+      const result = handler.addBreakTime({} as IpcMainInvokeEvent, 1, 5000);
+      expect(result).toBe(true);
+    });
+
+    test('returns false when session not found or already closed', () => {
+      mockSessionService.addBreakTime = () => false;
+      handler = sessionHandler(mockServices);
+      const result = handler.addBreakTime({} as IpcMainInvokeEvent, 1, 5000);
+      expect(result).toBe(false);
+    });
+  });
 });
 

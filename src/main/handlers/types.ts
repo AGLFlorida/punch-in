@@ -4,4 +4,5 @@ export interface PunchInState {
   running: boolean;
   currentTask: TaskModel;
   startTs: number | null; // epoch ms
+  sessionId?: number; // current open session id
 }

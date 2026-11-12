@@ -756,3 +756,200 @@ describe('TimerPage – end-time correction panel', () => {
     expect(screen.queryByRole('region', { name: /correct end time/i })).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Pomodoro modal tests
+// ---------------------------------------------------------------------------
+
+describe('TimerPage – pomodoro modal', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearTimerStorage();
+    // Enable pomodoro mode
+    localStorage.setItem('pomodoro-mode', 'true');
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('pomodoro-mode');
+    clearTimerStorage();
+  });
+
+  test('PomodoroModal does not render when timer is not running', async () => {
+    setupWindowTp({
+      getState: jest.fn(() => Promise.resolve({ running: false, startTs: null, currentTask: {} })),
+    });
+
+    await act(async () => {
+      render(<TimerPage />);
+    });
+
+    expect(screen.queryByTestId('pomodoro-modal-overlay')).not.toBeInTheDocument();
+  });
+
+  test('PomodoroModal does not render when pomodoro mode is off', async () => {
+    jest.useFakeTimers();
+    localStorage.setItem('pomodoro-mode', 'false');
+
+    // Simulate a session that has been running for more than 50 minutes
+    const longAgo = Date.now() - 51 * 60 * 1000;
+    setupWindowTp({
+      getState: jest.fn(() =>
+        Promise.resolve({ running: true, startTs: longAgo, sessionId: 1, currentTask: { id: 1, name: 'T', project_id: 10 } })
+      ),
+    });
+
+    await act(async () => {
+      render(<TimerPage />);
+    });
+    // Advance fake timers so the interval check fires
+    await act(async () => {
+      jest.advanceTimersByTime(1500);
+    });
+
+    expect(screen.queryByTestId('pomodoro-modal-overlay')).not.toBeInTheDocument();
+
+    jest.useRealTimers();
+  });
+
+  test('PomodoroModal shows when 50-minute threshold is crossed', async () => {
+    jest.useFakeTimers();
+    const mockAddBreakTime = jest.fn(() => Promise.resolve(true));
+    const longAgo = Date.now() - 51 * 60 * 1000;
+
+    setupWindowTp({
+      getState: jest.fn(() =>
+        Promise.resolve({ running: true, startTs: longAgo, sessionId: 42, currentTask: { id: 1, name: 'T', project_id: 10 } })
+      ),
+      addBreakTime: mockAddBreakTime,
+    });
+
+    await act(async () => {
+      render(<TimerPage />);
+    });
+
+    // Advance timer to trigger the interval check
+    await act(async () => {
+      jest.advanceTimersByTime(1500);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pomodoro-modal-overlay')).toBeInTheDocument();
+    });
+
+    jest.useRealTimers();
+  });
+
+  test('clicking OK on PomodoroModal closes it', async () => {
+    jest.useFakeTimers();
+    const mockAddBreakTime = jest.fn(() => Promise.resolve(true));
+    const longAgo = Date.now() - 51 * 60 * 1000;
+
+    setupWindowTp({
+      getState: jest.fn(() =>
+        Promise.resolve({ running: true, startTs: longAgo, sessionId: 42, currentTask: { id: 1, name: 'T', project_id: 10 } })
+      ),
+      addBreakTime: mockAddBreakTime,
+    });
+
+    await act(async () => {
+      render(<TimerPage />);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(1500);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pomodoro-modal-overlay')).toBeInTheDocument();
+    });
+
+    const okBtn = screen.getByTestId('pomodoro-ok-btn');
+    await act(async () => {
+      fireEvent.click(okBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('pomodoro-modal-overlay')).not.toBeInTheDocument();
+    });
+
+    jest.useRealTimers();
+  });
+
+  test('clicking OK calls addBreakTime with session ID and positive duration', async () => {
+    jest.useFakeTimers();
+    const mockAddBreakTime = jest.fn(() => Promise.resolve(true));
+    const longAgo = Date.now() - 51 * 60 * 1000;
+
+    setupWindowTp({
+      getState: jest.fn(() =>
+        Promise.resolve({ running: true, startTs: longAgo, sessionId: 42, currentTask: { id: 1, name: 'T', project_id: 10 } })
+      ),
+      addBreakTime: mockAddBreakTime,
+    });
+
+    await act(async () => {
+      render(<TimerPage />);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(1500);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pomodoro-modal-overlay')).toBeInTheDocument();
+    });
+
+    // Advance time to simulate a 2-second break
+    act(() => { jest.advanceTimersByTime(2000); });
+
+    const okBtn = screen.getByTestId('pomodoro-ok-btn');
+    await act(async () => {
+      fireEvent.click(okBtn);
+    });
+
+    await waitFor(() => {
+      expect(mockAddBreakTime).toHaveBeenCalledWith(42, expect.any(Number));
+      const breakMs = mockAddBreakTime.mock.calls[0][1] as number;
+      expect(breakMs).toBeGreaterThan(0);
+    });
+
+    jest.useRealTimers();
+  });
+
+  test('stopping the timer while pom modal is open hides the modal', async () => {
+    jest.useFakeTimers();
+    const mockAddBreakTime = jest.fn(() => Promise.resolve(true));
+    const longAgo = Date.now() - 51 * 60 * 1000;
+
+    setupWindowTp({
+      getState: jest.fn(() =>
+        Promise.resolve({ running: true, startTs: longAgo, sessionId: 42, currentTask: { id: 1, name: 'T', project_id: 10 } })
+      ),
+      addBreakTime: mockAddBreakTime,
+    });
+
+    await act(async () => {
+      render(<TimerPage />);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(1500);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pomodoro-modal-overlay')).toBeInTheDocument();
+    });
+
+    // Click the stop button
+    const stopBtn = screen.getByRole('button', { name: /stop/i });
+    await act(async () => {
+      fireEvent.click(stopBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('pomodoro-modal-overlay')).not.toBeInTheDocument();
+    });
+
+    jest.useRealTimers();
+  });
+});

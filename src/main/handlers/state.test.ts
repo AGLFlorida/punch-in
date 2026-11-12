@@ -52,6 +52,7 @@ describe('stateHandler', () => {
       const state = await handler.getState();
       expect(state.running).toBe(true);
       expect(state.startTs).toBe(mockSessionRow.start_time);
+      expect(state.sessionId).toBe(mockSessionRow.id);
       expect(state.currentTask.id).toBe(1);
       expect(state.currentTask.name).toBe('Test Task');
     });

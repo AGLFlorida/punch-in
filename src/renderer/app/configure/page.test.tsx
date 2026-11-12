@@ -255,6 +255,90 @@ describe('ConfigurePage - Data integrity', () => {
   });
 });
 
+describe('ConfigurePage - Pomodoro mode toggle', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetCompanyList.mockResolvedValue([]);
+    mockGetProjectList.mockResolvedValue([]);
+    // Clear localStorage before each test
+    localStorage.clear();
+  });
+
+  test('renders pomodoro section', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId('pomodoro-section')).toBeInTheDocument();
+    });
+  });
+
+  test('pomodoro toggle defaults to off when localStorage is empty', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      const toggle = screen.getByTestId('pomodoro-toggle') as HTMLInputElement;
+      expect(toggle.checked).toBe(false);
+    });
+  });
+
+  test('pomodoro toggle reads saved state from localStorage', async () => {
+    localStorage.setItem('pomodoro-mode', 'true');
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      const toggle = screen.getByTestId('pomodoro-toggle') as HTMLInputElement;
+      expect(toggle.checked).toBe(true);
+    });
+  });
+
+  test('toggling pomodoro mode persists to localStorage', async () => {
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId('pomodoro-toggle')).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByTestId('pomodoro-toggle') as HTMLInputElement;
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(localStorage.getItem('pomodoro-mode')).toBe('true');
+    });
+  });
+
+  test('toggling off persists false to localStorage', async () => {
+    localStorage.setItem('pomodoro-mode', 'true');
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      const toggle = screen.getByTestId('pomodoro-toggle') as HTMLInputElement;
+      expect(toggle.checked).toBe(true);
+    });
+
+    const toggle = screen.getByTestId('pomodoro-toggle') as HTMLInputElement;
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(localStorage.getItem('pomodoro-mode')).toBe('false');
+    });
+  });
+
+  test('pomodoro toggle is not part of the companies/projects save', async () => {
+    // The toggle should save immediately, not require clicking the Save button
+    render(<ConfigurePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId('pomodoro-toggle')).toBeInTheDocument();
+    });
+
+    const saveBtn = screen.getByText('Save');
+    // Save button disabled (no company/project changes)
+    expect(saveBtn).toBeDisabled();
+
+    const toggle = screen.getByTestId('pomodoro-toggle') as HTMLInputElement;
+    fireEvent.click(toggle);
+
+    // Save button should still be disabled — pomodoro is not an unsaved-change
+    await waitFor(() => {
+      expect(saveBtn).toBeDisabled();
+    });
+  });
+});
+
 describe('ConfigurePage - Unsaved Changes Detection', () => {
   beforeEach(() => {
     jest.clearAllMocks();

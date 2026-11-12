@@ -6,6 +6,8 @@ import { validateTaskName, TASK_NAME_MAX_LEN } from '@/lib/validation';
 import type { TaskModel } from '../../../main/services/task';
 import type { ProjectModel } from '../../../main/services/project';
 import { NotifyBox } from '@/components/Notify';
+import { PomodoroModal } from '@/components/PomodoroModal';
+import { LS_POMODORO_MODE } from '@/lib/constants';
 
 type ProjectNames = {
   [key: number]: string;
@@ -14,6 +16,35 @@ type ProjectNames = {
 // Constants for timer auto-stop
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const ONE_MINUTE_MS = 60 * 1000;
+
+// Pomodoro constants
+const POMODORO_WORK_MS = 50 * 60 * 1000; // 50 minutes
+
+/**
+ * Play a short alert tone using the Web Audio API.
+ * Falls back silently if the API is unavailable.
+ */
+function playPomodoroAlert(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const AudioCtx = window.AudioContext ?? (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx() as AudioContext;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 1.5);
+  } catch {
+    // Audio unavailable — fail silently
+  }
+}
 
 // Fallback task ID for stop operation when currentTask is missing
 // Using -1 as a sentinel value that passes validation (!task?.id check)
@@ -148,7 +179,15 @@ export default function TimerPage() {
   const [editEndTimeError, setEditEndTimeError] = useState<string | null>(null);
   const [editSaved, setEditSaved] = useState<boolean>(false);
   const lastAutoStopCheck = useRef<number>(0);
-  
+
+  // Pomodoro state
+  const [showPomodoroModal, setShowPomodoroModal] = useState<boolean>(false);
+  const pomodoroEnabled = useRef<boolean>(false);
+  const currentSessionId = useRef<number | null>(null);
+  const pomodoroWorkStartTs = useRef<number | null>(null);
+  const pomodoroAlertShown = useRef<boolean>(false);
+  const pomodoroBreakStartTs = useRef<number | null>(null);
+
   const projectNames = useRef<ProjectNames>({});
   const currentTask = useRef<TaskModel>(null);
   const setCurrentTask = (t: TaskModel) => {
@@ -189,6 +228,11 @@ export default function TimerPage() {
     const load = async () => {
 
       try {
+        // Load pomodoro setting from localStorage
+        if (typeof window !== 'undefined') {
+          pomodoroEnabled.current = localStorage.getItem(LS_POMODORO_MODE) === 'true';
+        }
+
         // Guard against missing preload (window.tp) when running renderer standalone
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const t = (typeof window !== 'undefined' && (window as any).tp && (window as any).tp.getTasks) ? await (window as any).tp.getTasks() : [];
@@ -204,7 +248,7 @@ export default function TimerPage() {
           return true;
         });
         setTasks(deduped);
-        
+
         p.forEach((p: ProjectModel) => {
           if (p.id && projectNames.current) projectNames.current[p.id] = p.name;
         })
@@ -216,6 +260,10 @@ export default function TimerPage() {
           if (state.running && state.startTs) {
             setIsRunning(true);
             setStartTs(state.startTs);
+            // Restore session ID for pomodoro break tracking
+            if (state.sessionId) currentSessionId.current = state.sessionId;
+            // Pomodoro cycle starts from the session start (best approximation on restore)
+            pomodoroWorkStartTs.current = state.startTs;
             if (state.currentTask?.id) {
               setCurrentTask(state.currentTask);
               setSelectedTaskId(state.currentTask.id);
@@ -303,6 +351,12 @@ export default function TimerPage() {
           setIsRunning(false);
           setStartTs(null);
           setElapsedTs(0);
+          // Reset pomodoro state on stop
+          pomodoroWorkStartTs.current = null;
+          pomodoroAlertShown.current = false;
+          pomodoroBreakStartTs.current = null;
+          currentSessionId.current = null;
+          setShowPomodoroModal(false);
           // Surface the last closed session for end-time correction
           if (window.tp?.getLastClosedSession) {
             try {
@@ -325,6 +379,11 @@ export default function TimerPage() {
           setIsRunning(false);
           setStartTs(null);
           setElapsedTs(0);
+          pomodoroWorkStartTs.current = null;
+          pomodoroAlertShown.current = false;
+          pomodoroBreakStartTs.current = null;
+          currentSessionId.current = null;
+          setShowPomodoroModal(false);
           return true;
         }
       } else {
@@ -332,6 +391,11 @@ export default function TimerPage() {
         setIsRunning(false);
         setStartTs(null);
         setElapsedTs(0);
+        pomodoroWorkStartTs.current = null;
+        pomodoroAlertShown.current = false;
+        pomodoroBreakStartTs.current = null;
+        currentSessionId.current = null;
+        setShowPomodoroModal(false);
         return true;
       }
     } catch (e) {
@@ -364,7 +428,7 @@ export default function TimerPage() {
 
         // Check for 24-hour auto-stop (check every minute to avoid excessive checks)
         const timeSinceLastCheck = now - lastAutoStopCheck.current;
-        
+
         if (elapsed >= TWENTY_FOUR_HOURS_MS && timeSinceLastCheck >= ONE_MINUTE_MS) {
           lastAutoStopCheck.current = now;
           // Auto-stop timer that's been running for 24+ hours
@@ -373,6 +437,21 @@ export default function TimerPage() {
           performStop(false).catch(err => {
             console.error("Failed to auto-stop timer:", err);
           });
+        }
+
+        // Check for 50-minute pomodoro alert
+        if (
+          pomodoroEnabled.current &&
+          pomodoroWorkStartTs.current !== null &&
+          !pomodoroAlertShown.current
+        ) {
+          const workElapsed = now - pomodoroWorkStartTs.current;
+          if (workElapsed >= POMODORO_WORK_MS) {
+            pomodoroAlertShown.current = true;
+            pomodoroBreakStartTs.current = now;
+            playPomodoroAlert();
+            setShowPomodoroModal(true);
+          }
         }
       }, 1000);
 
@@ -458,13 +537,28 @@ export default function TimerPage() {
         id: started,
         name: currentTask.current.name ?? taskName ?? ''
       });
-      setStartTs(Date.now());
+      const now = Date.now();
+      setStartTs(now);
       setIsRunning(true);
       // Clear any pending end-time correction panel from the previous session
       setLastStoppedSession(null);
       setEditEndTime('');
       setEditEndTimeError(null);
       setEditSaved(false);
+      // Reset pomodoro cycle for the new session
+      pomodoroWorkStartTs.current = now;
+      pomodoroAlertShown.current = false;
+      pomodoroBreakStartTs.current = null;
+      setShowPomodoroModal(false);
+      // Capture the session ID for break-time recording
+      if (typeof window !== 'undefined' && window.tp?.getState) {
+        try {
+          const state = await window.tp.getState();
+          if (state.sessionId) currentSessionId.current = state.sessionId;
+        } catch {
+          // Non-critical — session ID will be null and break recording skipped
+        }
+      }
     }
   };
 
@@ -582,16 +676,45 @@ export default function TimerPage() {
     }
   };
 
+  /**
+   * Called when the user clicks OK on the pomodoro break modal.
+   * Records the break duration against the current session and resets the cycle.
+   */
+  const onPomodoroOk = useCallback(async () => {
+    const breakMs = pomodoroBreakStartTs.current !== null
+      ? Math.max(0, Date.now() - pomodoroBreakStartTs.current)
+      : 0;
+
+    if (currentSessionId.current && breakMs > 0) {
+      try {
+        if (typeof window !== 'undefined' && window.tp?.addBreakTime) {
+          await window.tp.addBreakTime(currentSessionId.current, breakMs);
+        }
+      } catch (e) {
+        console.warn('Could not record pomodoro break time:', e);
+      }
+    }
+
+    // Reset cycle so the 50-min countdown starts fresh
+    pomodoroWorkStartTs.current = Date.now();
+    pomodoroAlertShown.current = false;
+    pomodoroBreakStartTs.current = null;
+    setShowPomodoroModal(false);
+  }, []);
+
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
   return (
     <>
       {error && (
-        <NotifyBox 
-          opts={error} 
-          close={() => setError(null)} 
+        <NotifyBox
+          opts={error}
+          close={() => setError(null)}
         />
+      )}
+      {showPomodoroModal && isRunning && (
+        <PomodoroModal onOk={onPomodoroOk} />
       )}
       <div className="header">
         <h1 className="title">Timer</h1>
@@ -684,7 +807,7 @@ export default function TimerPage() {
               <input
                 type="datetime-local"
                 value={editEndTime}
-                min={epochMsToDatetimeLocal(lastStoppedSession.startTs + 60000)}
+                min={epochMsToDatetimeLocal(lastStoppedSession.startTs + 1000)}
                 max={epochMsToDatetimeLocal(Date.now())}
                 onChange={(e) => {
                   setEditEndTime(e.target.value);
