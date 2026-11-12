@@ -4,16 +4,14 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CompanyModel } from '../../../main/services/company';
 import type { ProjectModel } from '../../../main/services/project';
-
-/** localStorage key for persisting the pomodoro mode setting */
-const LS_POMODORO_MODE = 'pomodoro-mode';
-
-/** UI-only extension: _tempId gives unsaved companies a stable React key. */
-type UICompanyModel = CompanyModel & { _tempId?: number };
 import { NotifyBox } from '@/components/Notify';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';
 import { useNavigationGuard } from '@/components/NavigationGuard';
+import { LS_POMODORO_MODE } from '@/lib/constants';
+
+/** UI-only extension: _tempId gives unsaved companies a stable React key. */
+type UICompanyModel = CompanyModel & { _tempId?: number };
 
 type SavedSnapshot = {
   companies: UICompanyModel[];

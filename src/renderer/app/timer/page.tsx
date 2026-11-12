@@ -7,6 +7,7 @@ import type { TaskModel } from '../../../main/services/task';
 import type { ProjectModel } from '../../../main/services/project';
 import { NotifyBox } from '@/components/Notify';
 import { PomodoroModal } from '@/components/PomodoroModal';
+import { LS_POMODORO_MODE } from '@/lib/constants';
 
 type ProjectNames = {
   [key: number]: string;
@@ -18,7 +19,6 @@ const ONE_MINUTE_MS = 60 * 1000;
 
 // Pomodoro constants
 const POMODORO_WORK_MS = 50 * 60 * 1000; // 50 minutes
-const LS_POMODORO_MODE = 'pomodoro-mode';
 
 /**
  * Play a short alert tone using the Web Audio API.
@@ -807,7 +807,7 @@ export default function TimerPage() {
               <input
                 type="datetime-local"
                 value={editEndTime}
-                min={epochMsToDatetimeLocal(lastStoppedSession.startTs + 60000)}
+                min={epochMsToDatetimeLocal(lastStoppedSession.startTs + 1000)}
                 max={epochMsToDatetimeLocal(Date.now())}
                 onChange={(e) => {
                   setEditEndTime(e.target.value);
