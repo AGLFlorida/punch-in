@@ -556,3 +556,203 @@ describe('TimerPage – new task start behavior', () => {
     expect(secondCallTask.id).toBeUndefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// End-time correction panel
+// ---------------------------------------------------------------------------
+
+describe('TimerPage – end-time correction panel', () => {
+  // Use real clock; times are relative to actual Date.now() at test execution.
+  const SESSION_START = Date.now() - 3600000; // 1 hour ago
+  const SESSION_END = Date.now() - 60000;     // 1 minute ago
+
+  const makeStoppedTp = (overrides: Record<string, unknown> = {}) => ({
+    getTasks: jest.fn(() => Promise.resolve(mockTasks)),
+    getProjectList: jest.fn(() => Promise.resolve(mockProjects)),
+    getState: jest.fn(() => Promise.resolve({ running: false, startTs: null, currentTask: {} })),
+    start: jest.fn(() => Promise.resolve(42)),
+    stop: jest.fn(() => Promise.resolve(true)),
+    getLastClosedSession: jest.fn(() =>
+      Promise.resolve({ id: 5, task_id: 1, start_time: SESSION_START, end_time: SESSION_END })
+    ),
+    updateSessionEndTime: jest.fn(() => Promise.resolve(true)),
+    ...overrides,
+  });
+
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).tp;
+    jest.clearAllMocks();
+    clearTimerStorage();
+  });
+
+  /** Render, wait for load, start, then stop. Returns user-event instance. */
+  async function startAndStop(mockTp: ReturnType<typeof makeStoppedTp>) {
+    const user = userEvent.setup();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).tp = mockTp;
+    render(<TimerPage />);
+
+    // Wait for task options specifically (task Alpha has value "1")
+    await waitFor(() =>
+      expect(screen.queryByRole('option', { name: /Task Alpha/i })).toBeInTheDocument()
+    );
+
+    const combos = screen.getAllByRole('combobox');
+    await user.selectOptions(combos[0], '1');
+
+    const startBtn = screen.getByRole('button', { name: /start/i });
+    await user.click(startBtn);
+    await waitFor(() => expect(mockTp.start).toHaveBeenCalled());
+
+    const stopBtn = screen.getByRole('button', { name: /stop/i });
+    await user.click(stopBtn);
+    await waitFor(() => expect(mockTp.stop).toHaveBeenCalled());
+
+    return user;
+  }
+
+  test('correction panel appears after stop', async () => {
+    const mockTp = makeStoppedTp();
+    await startAndStop(mockTp);
+
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: /correct end time/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /save end time/i })).toBeInTheDocument();
+  });
+
+  test('correction panel is not shown while timer is running', async () => {
+    const mockTp = makeStoppedTp();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).tp = mockTp;
+    render(<TimerPage />);
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('option').length).toBeGreaterThan(1)
+    );
+
+    const user = userEvent.setup();
+
+    await waitFor(() =>
+      expect(screen.queryByRole('option', { name: /Task Alpha/i })).toBeInTheDocument()
+    );
+
+    const combos = screen.getAllByRole('combobox');
+    await user.selectOptions(combos[0], '1');
+
+    const startBtn = screen.getByRole('button', { name: /start/i });
+    await user.click(startBtn);
+    await waitFor(() => expect(mockTp.start).toHaveBeenCalled());
+
+    expect(screen.queryByRole('region', { name: /correct end time/i })).toBeNull();
+  });
+
+  test('shows inline error when end time is before start time', async () => {
+    const mockTp = makeStoppedTp();
+    await startAndStop(mockTp);
+
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: /correct end time/i })).toBeInTheDocument()
+    );
+
+    const input = screen.getByTestId('edit-end-time-input');
+    // A time well before the session start
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const before = new Date(SESSION_START - 1000);
+    const beforeStr = `${before.getFullYear()}-${pad(before.getMonth() + 1)}-${pad(before.getDate())}T${pad(before.getHours())}:${pad(before.getMinutes())}`;
+    fireEvent.change(input, { target: { value: beforeStr } });
+
+    fireEvent.click(screen.getByRole('button', { name: /save end time/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    expect(mockTp.updateSessionEndTime).not.toHaveBeenCalled();
+  });
+
+  test('shows inline error when end time is in the future', async () => {
+    const mockTp = makeStoppedTp();
+    await startAndStop(mockTp);
+
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: /correct end time/i })).toBeInTheDocument()
+    );
+
+    const input = screen.getByTestId('edit-end-time-input');
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const future = new Date(Date.now() + 3600000);
+    const futureStr = `${future.getFullYear()}-${pad(future.getMonth() + 1)}-${pad(future.getDate())}T${pad(future.getHours())}:${pad(future.getMinutes())}`;
+    fireEvent.change(input, { target: { value: futureStr } });
+
+    fireEvent.click(screen.getByRole('button', { name: /save end time/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    expect(mockTp.updateSessionEndTime).not.toHaveBeenCalled();
+  });
+
+  test('calls updateSessionEndTime with correct args on valid save', async () => {
+    const mockTp = makeStoppedTp();
+    await startAndStop(mockTp);
+
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: /correct end time/i })).toBeInTheDocument()
+    );
+
+    const input = screen.getByTestId('edit-end-time-input');
+    // A valid time: 30 minutes ago (after session start, before now)
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const valid = new Date(Date.now() - 1800000);
+    const validStr = `${valid.getFullYear()}-${pad(valid.getMonth() + 1)}-${pad(valid.getDate())}T${pad(valid.getHours())}:${pad(valid.getMinutes())}`;
+    fireEvent.change(input, { target: { value: validStr } });
+
+    fireEvent.click(screen.getByRole('button', { name: /save end time/i }));
+
+    await waitFor(() => {
+      expect(mockTp.updateSessionEndTime).toHaveBeenCalledWith(5, expect.any(Number));
+    });
+
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  test('shows success confirmation after valid save', async () => {
+    const mockTp = makeStoppedTp();
+    await startAndStop(mockTp);
+
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: /correct end time/i })).toBeInTheDocument()
+    );
+
+    const input = screen.getByTestId('edit-end-time-input');
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const valid = new Date(Date.now() - 1800000);
+    const validStr = `${valid.getFullYear()}-${pad(valid.getMonth() + 1)}-${pad(valid.getDate())}T${pad(valid.getHours())}:${pad(valid.getMinutes())}`;
+    fireEvent.change(input, { target: { value: validStr } });
+
+    fireEvent.click(screen.getByRole('button', { name: /save end time/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /save end time/i })).toBeDisabled();
+    });
+  });
+
+  test('correction panel clears when a new session starts', async () => {
+    const mockTp = makeStoppedTp();
+    const user = await startAndStop(mockTp);
+
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: /correct end time/i })).toBeInTheDocument()
+    );
+
+    // Start again
+    const startBtn = screen.getByRole('button', { name: /start/i });
+    await user.click(startBtn);
+    await waitFor(() => expect(mockTp.start).toHaveBeenCalledTimes(2));
+
+    expect(screen.queryByRole('region', { name: /correct end time/i })).toBeNull();
+  });
+});

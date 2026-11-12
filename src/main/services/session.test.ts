@@ -368,5 +368,107 @@ describe('SessionService', () => {
       expect(session?.end_time).toBe(endTime);
     });
   });
+
+  describe('getLastClosedRow', () => {
+    test('returns null when no closed sessions exist', () => {
+      expect(service.getLastClosedRow()).toBeNull();
+    });
+
+    test('returns null when only open sessions exist', () => {
+      const now = Date.now();
+      db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)').run(testTaskId, now - 1000);
+      expect(service.getLastClosedRow()).toBeNull();
+    });
+
+    test('returns the most recently closed session', () => {
+      const now = Date.now();
+      const id1 = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, now - 5000, now - 4000).lastInsertRowid as number;
+      const id2 = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, now - 3000, now - 2000).lastInsertRowid as number;
+
+      const row = service.getLastClosedRow();
+      expect(row).not.toBeNull();
+      expect(row!.id).toBe(id2);
+      expect(row!.id).toBeGreaterThan(id1);
+    });
+
+    test('excludes soft-deleted sessions', () => {
+      const now = Date.now();
+      db.prepare('INSERT INTO session (task_id, start_time, end_time, is_active) VALUES (?, ?, ?, 0)')
+        .run(testTaskId, now - 5000, now - 4000);
+
+      expect(service.getLastClosedRow()).toBeNull();
+    });
+
+  });
+
+  describe('updateEndTime', () => {
+    test('updates end time of a closed session', () => {
+      const now = Date.now();
+      const startTime = now - 5000;
+      const originalEnd = now - 1000;
+      const id = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, startTime, originalEnd).lastInsertRowid as number;
+
+      const newEnd = now - 500;
+      const result = service.updateEndTime(id, newEnd);
+      expect(result).toBe(true);
+
+      const row = db.prepare('SELECT end_time FROM session WHERE id = ?').get(id) as { end_time: number };
+      expect(row.end_time).toBe(newEnd);
+    });
+
+    test('returns false when id is 0 or missing', () => {
+      expect(service.updateEndTime(0, Date.now() - 100)).toBe(false);
+    });
+
+    test('returns false when endTime is 0 or missing', () => {
+      const now = Date.now();
+      const id = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, now - 5000, now - 1000).lastInsertRowid as number;
+      expect(service.updateEndTime(id, 0)).toBe(false);
+    });
+
+    test('returns false for non-existent session', () => {
+      expect(service.updateEndTime(99999, Date.now() - 100)).toBe(false);
+    });
+
+    test('returns false when session is still open (end_time IS NULL)', () => {
+      const now = Date.now();
+      const id = db.prepare('INSERT INTO session (task_id, start_time) VALUES (?, ?)')
+        .run(testTaskId, now - 5000).lastInsertRowid as number;
+
+      expect(service.updateEndTime(id, now - 100)).toBe(false);
+    });
+
+    test('returns false when new end time is not after start time', () => {
+      const now = Date.now();
+      const startTime = now - 5000;
+      const id = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, startTime, now - 1000).lastInsertRowid as number;
+
+      // endTime equal to startTime
+      expect(service.updateEndTime(id, startTime)).toBe(false);
+      // endTime before startTime
+      expect(service.updateEndTime(id, startTime - 1000)).toBe(false);
+    });
+
+    test('returns false when new end time is in the future', () => {
+      const now = Date.now();
+      const id = db.prepare('INSERT INTO session (task_id, start_time, end_time) VALUES (?, ?, ?)')
+        .run(testTaskId, now - 5000, now - 1000).lastInsertRowid as number;
+
+      expect(service.updateEndTime(id, now + 60000)).toBe(false);
+    });
+
+    test('returns false for soft-deleted session', () => {
+      const now = Date.now();
+      const id = db.prepare('INSERT INTO session (task_id, start_time, end_time, is_active) VALUES (?, ?, ?, 0)')
+        .run(testTaskId, now - 5000, now - 1000).lastInsertRowid as number;
+
+      expect(service.updateEndTime(id, now - 500)).toBe(false);
+    });
+  });
 });
 

@@ -89,6 +89,43 @@ export default function DevTPStub() {
         return true;
       },
 
+      getLastClosedSession: async () => {
+        const closed = sessions
+          .filter(s => {
+            const r = s as unknown as { end_time: Date | null };
+            return r.end_time !== null && r.end_time !== undefined;
+          })
+          .sort((a, b) => {
+            const ra = a as unknown as { id: number };
+            const rb = b as unknown as { id: number };
+            return rb.id - ra.id;
+          });
+        if (closed.length === 0) return null;
+        const s = closed[0] as unknown as { id: number; task_id: number; start_time: Date; end_time: Date };
+        return {
+          id: s.id,
+          task_id: s.task_id,
+          start_time: s.start_time instanceof Date ? s.start_time.getTime() : s.start_time,
+          end_time: s.end_time instanceof Date ? s.end_time.getTime() : s.end_time,
+        };
+      },
+
+      updateSessionEndTime: async (id: number, endTime: number): Promise<boolean> => {
+        const session = sessions.find(s => {
+          const rowData = s as unknown as { id: number };
+          return rowData.id === id;
+        });
+        if (!session) return false;
+        const sessionRow = session as unknown as { start_time: Date; end_time: Date | null };
+        const startMs = sessionRow.start_time instanceof Date ? sessionRow.start_time.getTime() : (sessionRow.start_time as unknown as number);
+        if (sessionRow.end_time === null) return false;
+        if (endTime <= startMs) return false;
+        if (endTime > Date.now()) return false;
+        sessionRow.end_time = new Date(endTime);
+        sessionsUpdated.current.forEach(cb => cb());
+        return true;
+      },
+
       // simple report
       getReport: async (): Promise<ReportModel[]> => {
         if (sessions.length < 1) return [];

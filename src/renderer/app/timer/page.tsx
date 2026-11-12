@@ -45,6 +45,22 @@ function saveTimerSelection(
   localStorage.setItem(LS_NEW_TASK, String(newTask));
 }
 
+/**
+ * Convert epoch milliseconds to a datetime-local input string (YYYY-MM-DDTHH:mm).
+ * Uses local time so the value matches what the user sees on their clock.
+ */
+function epochMsToDatetimeLocal(ms: number): string {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    d.getFullYear() + '-' +
+    pad(d.getMonth() + 1) + '-' +
+    pad(d.getDate()) + 'T' +
+    pad(d.getHours()) + ':' +
+    pad(d.getMinutes())
+  );
+}
+
 function loadTimerSelection(): SavedTimerSelection | null {
   if (typeof window === 'undefined') return null;
   const taskIdRaw = localStorage.getItem(LS_TASK_ID);
@@ -109,6 +125,8 @@ function computeRestoredSelection(
   return { selectedTaskId: '', selectedProjectId: '', taskName: '', newTask: false, currentTask: null };
 }
 
+type LastStoppedSession = { id: number; startTs: number; endTs: number };
+
 export default function TimerPage() {
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | ''>('');
@@ -123,6 +141,12 @@ export default function TimerPage() {
   const [elapsedTs, setElapsedTs] = useState<number>(0);
   const [wallClock, setWallClock] = useState<string>('');
   const [error, setError] = useState<{ title: string; body?: string } | null>(null);
+
+  // State for the end-time correction panel shown after a session is stopped
+  const [lastStoppedSession, setLastStoppedSession] = useState<LastStoppedSession | null>(null);
+  const [editEndTime, setEditEndTime] = useState<string>('');
+  const [editEndTimeError, setEditEndTimeError] = useState<string | null>(null);
+  const [editSaved, setEditSaved] = useState<boolean>(false);
   const lastAutoStopCheck = useRef<number>(0);
   
   const projectNames = useRef<ProjectNames>({});
@@ -273,12 +297,26 @@ export default function TimerPage() {
         }
         
         const stopped: boolean = await window.tp.stop(currentTask.current);
-        
+
         if (stopped) {
           // Only update UI state after successful stop
           setIsRunning(false);
           setStartTs(null);
           setElapsedTs(0);
+          // Surface the last closed session for end-time correction
+          if (window.tp?.getLastClosedSession) {
+            try {
+              const row = await window.tp.getLastClosedSession();
+              if (row && row.id && row.end_time) {
+                setLastStoppedSession({ id: row.id, startTs: row.start_time, endTs: row.end_time });
+                setEditEndTime(epochMsToDatetimeLocal(row.end_time));
+                setEditEndTimeError(null);
+                setEditSaved(false);
+              }
+            } catch (fetchErr) {
+              console.info('Could not fetch last closed session:', fetchErr);
+            }
+          }
           return true;
         } else {
           // Stop returned false - no open sessions to close
@@ -422,6 +460,11 @@ export default function TimerPage() {
       });
       setStartTs(Date.now());
       setIsRunning(true);
+      // Clear any pending end-time correction panel from the previous session
+      setLastStoppedSession(null);
+      setEditEndTime('');
+      setEditEndTimeError(null);
+      setEditSaved(false);
     }
   };
 
@@ -503,6 +546,41 @@ export default function TimerPage() {
   //   //console.log(JSON.stringify(currentTask));
   //   return false;
   // }, [currentTask.current]) // TODO not sure this is needed.
+
+  const onSaveEndTime = async () => {
+    if (!lastStoppedSession) return;
+
+    // Parse the datetime-local string to epoch ms
+    const parsedMs = new Date(editEndTime).getTime();
+
+    if (!editEndTime || isNaN(parsedMs)) {
+      setEditEndTimeError('Enter a valid date and time.');
+      return;
+    }
+
+    if (parsedMs <= lastStoppedSession.startTs) {
+      setEditEndTimeError('End time must be after the session start time.');
+      return;
+    }
+
+    if (parsedMs > Date.now()) {
+      setEditEndTimeError('End time cannot be in the future.');
+      return;
+    }
+
+    if (typeof window !== 'undefined' && window.tp?.updateSessionEndTime) {
+      const ok: boolean = await window.tp.updateSessionEndTime(lastStoppedSession.id, parsedMs);
+      if (ok) {
+        setEditSaved(true);
+        setEditEndTimeError(null);
+        setLastStoppedSession({ ...lastStoppedSession, endTs: parsedMs });
+      } else {
+        setEditEndTimeError('Could not save the new end time. Please try again.');
+      }
+    } else {
+      setEditEndTimeError('End time correction is not available in this environment.');
+    }
+  };
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -598,6 +676,46 @@ export default function TimerPage() {
           <div><span className="label">Elapsed:</span> {msToHMS(elapsedTs)}</div>
           <div><span className="label">Status:</span> {isRunning ? 'Running' : 'Idle'}</div>
         </div>
+
+        {lastStoppedSession && !isRunning && (
+          <section aria-label="Correct end time">
+            <label>Correct end time</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <input
+                type="datetime-local"
+                value={editEndTime}
+                min={epochMsToDatetimeLocal(lastStoppedSession.startTs + 60000)}
+                max={epochMsToDatetimeLocal(Date.now())}
+                onChange={(e) => {
+                  setEditEndTime(e.target.value);
+                  setEditEndTimeError(null);
+                  setEditSaved(false);
+                }}
+                aria-label="End time"
+                data-testid="edit-end-time-input"
+                aria-describedby={editEndTimeError ? 'edit-end-time-error' : undefined}
+                aria-invalid={!!editEndTimeError}
+              />
+              {editEndTimeError && (
+                <span
+                  id="edit-end-time-error"
+                  role="alert"
+                  style={{ color: 'var(--color-danger, #c0392b)', fontSize: '0.85em' }}
+                >
+                  {editEndTimeError}
+                </span>
+              )}
+              {editSaved && (
+                <span style={{ color: 'var(--color-success, #27ae60)', fontSize: '0.85em' }}>
+                  End time updated.
+                </span>
+              )}
+              <button onClick={onSaveEndTime} disabled={editSaved}>
+                Save end time
+              </button>
+            </div>
+          </section>
+        )}
       </div>
     </>
   );
