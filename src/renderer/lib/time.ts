@@ -1,3 +1,9 @@
+/** Round a duration in seconds to the nearest 15-minute boundary (900 seconds). */
+export function roundToNearest15Min(seconds: number): number {
+  const quarterHour = 900; // 15 * 60
+  return Math.round(seconds / quarterHour) * quarterHour;
+}
+
 export function msToHMS(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   const hh = String(Math.floor(s / 3600)).padStart(2, '0');
