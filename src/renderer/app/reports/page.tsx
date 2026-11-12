@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { msToHMS, roundToNearest15Min } from '@/lib/time';
-import { ROUND_15_KEY } from '../configure/page';
+import { ROUND_15_KEY } from '@/lib/constants';
 import type { ReportModel } from '../../../main/services/report';
 
 type SortColumn = 'company_name' | 'project_name' | 'task_name' | 'day' | 'total_seconds';

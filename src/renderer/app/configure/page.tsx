@@ -8,8 +8,7 @@ import { NotifyBox } from '@/components/Notify';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TrashIcon } from '@/components/CustomImage';
 import { useNavigationGuard } from '@/components/NavigationGuard';
-
-export const ROUND_15_KEY = 'punchin.roundToNearest15';
+import { ROUND_15_KEY } from '@/lib/constants';
 
 type SavedSnapshot = {
   companies: CompanyModel[];
