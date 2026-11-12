@@ -525,7 +525,7 @@ describe('SessionService', () => {
       const now = Date.now();
       const startTime = now - 60000;
       const endTime = now - 1000;
-      const breakMs = 300000; // 5 minutes break
+      const breakMs = 10000; // 10 seconds — less than the ~59 s session duration
 
       db.prepare('INSERT INTO session (task_id, start_time, end_time, break_ms) VALUES (?, ?, ?, ?)')
         .run(testTaskId, startTime, endTime, breakMs);
@@ -533,7 +533,7 @@ describe('SessionService', () => {
       const result = service.getAllWithDetails();
       expect(result).toHaveLength(1);
       // Raw duration = endTime - startTime; subtract breakMs
-      const expected = Math.max(0, (endTime - startTime) - breakMs);
+      const expected = (endTime - startTime) - breakMs;
       expect(result[0].duration_ms).toBe(expected);
     });
 

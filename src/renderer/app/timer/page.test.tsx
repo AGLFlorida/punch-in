@@ -787,6 +787,7 @@ describe('TimerPage – pomodoro modal', () => {
   });
 
   test('PomodoroModal does not render when pomodoro mode is off', async () => {
+    jest.useFakeTimers();
     localStorage.setItem('pomodoro-mode', 'false');
 
     // Simulate a session that has been running for more than 50 minutes
@@ -800,10 +801,14 @@ describe('TimerPage – pomodoro modal', () => {
     await act(async () => {
       render(<TimerPage />);
     });
-    // Run timers forward so the interval can fire
-    act(() => { jest.advanceTimersByTime(1500); });
+    // Advance fake timers so the interval check fires
+    await act(async () => {
+      jest.advanceTimersByTime(1500);
+    });
 
     expect(screen.queryByTestId('pomodoro-modal-overlay')).not.toBeInTheDocument();
+
+    jest.useRealTimers();
   });
 
   test('PomodoroModal shows when 50-minute threshold is crossed', async () => {
